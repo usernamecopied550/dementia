@@ -1,7 +1,8 @@
 import 'package:flutter/material.dart';
 import '../constants/colors.dart';
 import '../widgets/custom_button.dart';
-
+import '../screens/medication_screen.dart';
+import '../screens/tasks_screen.dart';
 class HomeScreen extends StatelessWidget {
   const HomeScreen({super.key});
 
@@ -62,7 +63,16 @@ class HomeScreen extends StatelessWidget {
                     CustomButton(
                       text: "Today's Tasks",
                       imagePath: 'assets/images/calendar.png',
-                    ),
+                        onPressed: () {
+                        Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                         builder: (context) => const TasksScreen(),
+                      ),
+                    );
+                  },
+              ),
+
 
                     CustomButton(
                       text: "Family",
