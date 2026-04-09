@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
-
+import 'patient_info_screen.dart';
+import 'caregiver_medications_screen.dart';
 class CaregiverHomeScreen extends StatelessWidget {
   const CaregiverHomeScreen({super.key});
 
@@ -30,6 +31,14 @@ class CaregiverHomeScreen extends StatelessWidget {
               _buildButton(
                 text: "Patient Info",
                 image: "assets/images/calendar.png",
+                onTap: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (context) => const PatientInfoScreen(),
+                    ),
+                  );
+                },
               ),
 
               const SizedBox(height: 20),
@@ -38,14 +47,23 @@ class CaregiverHomeScreen extends StatelessWidget {
               _buildButton(
                 text: "Medications",
                 image: "assets/images/pill.png",
+                onTap: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (context) => const CaregiverMedicationsScreen(),
+                    ),
+                  );
+                },
               ),
 
               const SizedBox(height: 20),
 
-              // Daily Tasks (your pin image)
+              // Daily Tasks
               _buildButton(
                 text: "Daily Tasks",
                 image: "assets/images/pin.png",
+                onTap: () {},
               ),
 
               const SizedBox(height: 20),
@@ -55,6 +73,7 @@ class CaregiverHomeScreen extends StatelessWidget {
                 text: "Emergency",
                 image: "assets/images/alert.png",
                 textColor: Colors.red,
+                onTap: () {},
               ),
             ],
           ),
@@ -67,33 +86,37 @@ class CaregiverHomeScreen extends StatelessWidget {
     required String text,
     required String image,
     Color textColor = Colors.black,
+    required VoidCallback onTap,
   }) {
-    return Container(
-      padding: const EdgeInsets.symmetric(vertical: 20, horizontal: 15),
-      decoration: BoxDecoration(
-        color: const Color(0xFF8FAAC3),
-        borderRadius: BorderRadius.circular(20),
-        boxShadow: const [
-          BoxShadow(
-            color: Colors.black12,
-            blurRadius: 6,
-            offset: Offset(0, 4),
-          )
-        ],
-      ),
-      child: Row(
-        children: [
-          Image.asset(image, width: 50),
-          const SizedBox(width: 20),
-          Text(
-            text,
-            style: TextStyle(
-              fontSize: 18,
-              fontWeight: FontWeight.bold,
-              color: textColor,
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        padding: const EdgeInsets.symmetric(vertical: 20, horizontal: 15),
+        decoration: BoxDecoration(
+          color: const Color(0xFF8FAAC3),
+          borderRadius: BorderRadius.circular(20),
+          boxShadow: const [
+            BoxShadow(
+              color: Colors.black12,
+              blurRadius: 6,
+              offset: Offset(0, 4),
+            )
+          ],
+        ),
+        child: Row(
+          children: [
+            Image.asset(image, width: 50),
+            const SizedBox(width: 20),
+            Text(
+              text,
+              style: TextStyle(
+                fontSize: 18,
+                fontWeight: FontWeight.bold,
+                color: textColor,
+              ),
             ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }
