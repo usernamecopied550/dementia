@@ -10,7 +10,7 @@ class FamilyScreen extends StatelessWidget {
 
       body: Center(
         child: Container(
-          width: 400, // same width as other screens
+          width: 400,
           color: Colors.grey[200],
 
           child: SafeArea(
@@ -21,25 +21,39 @@ class FamilyScreen extends StatelessWidget {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
 
-                  // 🔹 Title Row
-                  Row(
-                    children: const [
-                      Text(
-                        "👨‍👩‍👧",
-                        style: TextStyle(fontSize: 40),
-                      ),
-                      SizedBox(width: 10),
-                      Text(
-                        "Family",
-                        style: TextStyle(
-                          fontSize: 28,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-                    ],
+                  // 🔙 Back button
+                  IconButton(
+                    icon: const Icon(Icons.arrow_back, size: 28),
+                    onPressed: () {
+                      Navigator.pop(context);
+                    },
                   ),
 
-                  const SizedBox(height: 20),
+                  const SizedBox(height: 10),
+
+                  // 🔹 CENTERED TITLE + IMAGE
+                  Center(
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Image.asset(
+                          'assets/images/family.png',
+                          width: 60,
+                          height: 60,
+                        ),
+                        const SizedBox(width: 15),
+                        const Text(
+                          "Family",
+                          style: TextStyle(
+                            fontSize: 32,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+
+                  const SizedBox(height: 30),
 
                   // 🔹 Family Members
                   buildMember("Mom"),
@@ -55,7 +69,7 @@ class FamilyScreen extends StatelessWidget {
     );
   }
 
-  // 🔹 Reusable Widget for each member
+  // 🔹 Member Card
   Widget buildMember(String name) {
     return Container(
       margin: const EdgeInsets.only(bottom: 15),
@@ -69,9 +83,7 @@ class FamilyScreen extends StatelessWidget {
       child: Row(
         children: [
           const Icon(Icons.person, size: 30, color: Colors.blue),
-
           const SizedBox(width: 15),
-
           Text(
             name,
             style: const TextStyle(

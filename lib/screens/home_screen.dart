@@ -4,16 +4,18 @@ import '../widgets/custom_button.dart';
 import '../screens/medication_screen.dart';
 import '../screens/tasks_screen.dart';
 import 'family_screen.dart';
-import 'package:flutter/material.dart';
 
+/// 🔴 EMERGENCY SCREEN
 class PatientEmergencyScreen extends StatefulWidget {
   const PatientEmergencyScreen({super.key});
 
   @override
-  State<PatientEmergencyScreen> createState() => _PatientEmergencyScreenState();
+  State<PatientEmergencyScreen> createState() =>
+      _PatientEmergencyScreenState();
 }
 
-class _PatientEmergencyScreenState extends State<PatientEmergencyScreen> {
+class _PatientEmergencyScreenState
+    extends State<PatientEmergencyScreen> {
   bool alertSent = false;
 
   void sendAlert() {
@@ -26,16 +28,13 @@ class _PatientEmergencyScreenState extends State<PatientEmergencyScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: Colors.grey[200],
-
       body: Center(
         child: Container(
           width: 400,
           padding: const EdgeInsets.all(16),
-
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-
               const Text(
                 "I Need Help",
                 style: TextStyle(
@@ -43,10 +42,8 @@ class _PatientEmergencyScreenState extends State<PatientEmergencyScreen> {
                   fontWeight: FontWeight.bold,
                 ),
               ),
-
               const SizedBox(height: 40),
 
-              // 🔴 Big Button
               GestureDetector(
                 onTap: sendAlert,
                 child: Container(
@@ -92,6 +89,7 @@ class _PatientEmergencyScreenState extends State<PatientEmergencyScreen> {
   }
 }
 
+/// 🏠 PATIENT HOME SCREEN
 class HomeScreen extends StatelessWidget {
   const HomeScreen({super.key});
 
@@ -99,99 +97,113 @@ class HomeScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: AppColors.background,
+
       body: Center(
         child: Container(
           width: 400,
-          color: AppColors.background,
+          padding: const EdgeInsets.all(16),
+
           child: SafeArea(
-            child: Padding(
-              padding: const EdgeInsets.all(16),
-              child: SingleChildScrollView( // ✅ FIX OVERFLOW
-                child: Column(
-                  children: [
-                    const SizedBox(height: 20),
+            child: SingleChildScrollView(
+              child: Column(
+                children: [
+                  const SizedBox(height: 20),
 
-                    const Text(
-                      "Good\nMorning",
-                      textAlign: TextAlign.center,
-                      style: TextStyle(
-                        fontSize: 36,
-                        fontWeight: FontWeight.w800,
+                  const Text(
+                    "Good\nMorning",
+                    textAlign: TextAlign.center,
+                    style: TextStyle(
+                      fontSize: 36,
+                      fontWeight: FontWeight.w800,
+                    ),
+                  ),
+
+                  const SizedBox(height: 20),
+
+                  Column(
+                    children: [
+                      Text(
+                        "Next Medication: 10:00 am",
+                        style: TextStyle(
+                          fontSize: 16,
+                          color: Colors.grey[700],
+                        ),
                       ),
-                    ),
-
-                    const SizedBox(height: 20),
-
-                    Column(
-                      children: [
-                        Text(
-                          "Next Medication: 10:00 am",
-                          style: TextStyle(
-                            fontSize: 16,
-                            color: Colors.grey[700],
-                          ),
+                      const SizedBox(height: 5),
+                      const Text(
+                        "Status: Not taken yet",
+                        style: TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.bold,
                         ),
-                        const SizedBox(height: 5),
-                        const Text(
-                          "Status: Not taken yet",
-                          style: TextStyle(
-                            fontSize: 16,
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
-                      ],
-                    ),
+                      ),
+                    ],
+                  ),
 
-                    const SizedBox(height: 30),
+                  const SizedBox(height: 30),
 
-                    CustomButton(
-                      text: "Take medication",
-                      imagePath: 'assets/images/pill.png',
-                    ),
-
-                    CustomButton(
-                      text: "Today's Tasks",
-                      imagePath: 'assets/images/calendar.png',
-                        onPressed: () {
-                        Navigator.push(
+                  // 🔥 MEDICATION BUTTON
+                  CustomButton(
+                    text: "Take medication",
+                    imagePath: 'assets/images/pill.png',
+                    onPressed: () {
+                      Navigator.push(
                         context,
                         MaterialPageRoute(
-                         builder: (context) => const TasksScreen(),
-                      ),
-                    );
-                  },
-              ),
+                          builder: (context) =>
+                          const MedicationScreen(),
+                        ),
+                      );
+                    },
+                  ),
 
+                  // 🔥 TASKS BUTTON
+                  CustomButton(
+                    text: "Today's Tasks",
+                    imagePath: 'assets/images/calendar.png',
+                    onPressed: () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (context) =>
+                          const TasksScreen(),
+                        ),
+                      );
+                    },
+                  ),
 
-                    CustomButton(
-                      text: "Family",
-                      imagePath: 'assets/images/family.png',
-                      onPressed: () {
-                        Navigator.push(
-                          context,
-                          MaterialPageRoute(
-                            builder: (context) => const FamilyScreen(),
-                          ),
-                        );
-                      },
-                    ),
+                  // FAMILY
+                  CustomButton(
+                    text: "Family",
+                    imagePath: 'assets/images/family.png',
+                    onPressed: () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (context) =>
+                          const FamilyScreen(),
+                        ),
+                      );
+                    },
+                  ),
 
-                    CustomButton(
-                      text: "I Need Help",
-                      imagePath: 'assets/images/alert.png',
-                      onPressed: () {
-                        Navigator.push(
-                          context,
-                          MaterialPageRoute(
-                            builder: (context) => const PatientEmergencyScreen(),
-                          ),
-                        );
-                      },
-                    ),
+                  // EMERGENCY
+                  CustomButton(
+                    text: "I Need Help",
+                    imagePath: 'assets/images/alert.png',
+                    onPressed: () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (context) =>
+                          const PatientEmergencyScreen(),
+                        ),
+                      );
+                    },
+                  ),
 
-                    const SizedBox(height: 20),
-                  ],
-                ),
+                  const SizedBox(height: 20),
+                ],
               ),
             ),
           ),

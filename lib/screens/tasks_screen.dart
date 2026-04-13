@@ -37,17 +37,15 @@ class _TasksScreenState extends State<TasksScreen> {
           ),
           actions: [
             TextButton(
-              onPressed: () {
-                Navigator.pop(context);
-              },
+              onPressed: () => Navigator.pop(context),
               child: const Text("Cancel"),
             ),
             TextButton(
               onPressed: () {
-                if (controller.text.isNotEmpty) {
+                if (controller.text.trim().isNotEmpty) {
                   setState(() {
                     tasks.add({
-                      "title": controller.text,
+                      "title": controller.text.trim(),
                       "done": false,
                     });
                   });
@@ -66,10 +64,10 @@ class _TasksScreenState extends State<TasksScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: Colors.grey[200],
+
       body: Center(
-        child: Container(
-          width: 400, // ✅ phone style like your other screens
-          color: Colors.grey[200],
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: 430),
           child: SafeArea(
             child: Padding(
               padding: const EdgeInsets.all(16),
@@ -77,15 +75,27 @@ class _TasksScreenState extends State<TasksScreen> {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
 
-                  // 🔹 Title
+                  // 🔙 Back Button
+                  IconButton(
+                    icon: const Icon(Icons.arrow_back, size: 28),
+                    onPressed: () {
+                      Navigator.pop(context);
+                    },
+                  ),
+
+                  // 🔹 Title with calendar image
                   Row(
-                    children: const [
-                      Text("📅", style: TextStyle(fontSize: 30)),
-                      SizedBox(width: 10),
-                      Text(
+                    children: [
+                      Image.asset(
+                        'assets/images/calendar.png',
+                        width: 30,
+                        height: 30,
+                      ),
+                      const SizedBox(width: 10),
+                      const Text(
                         "Tasks",
                         style: TextStyle(
-                          fontSize: 28,
+                          fontSize: 26,
                           fontWeight: FontWeight.bold,
                         ),
                       ),
@@ -102,6 +112,7 @@ class _TasksScreenState extends State<TasksScreen> {
                         return Padding(
                           padding: const EdgeInsets.only(bottom: 15),
                           child: Container(
+                            width: double.infinity,
                             padding: const EdgeInsets.symmetric(
                                 horizontal: 15, vertical: 18),
                             decoration: BoxDecoration(
@@ -115,18 +126,19 @@ class _TasksScreenState extends State<TasksScreen> {
                                 GestureDetector(
                                   onTap: () => toggleTask(index),
                                   child: Container(
-                                    width: 24,
-                                    height: 24,
+                                    width: 26,
+                                    height: 26,
                                     decoration: BoxDecoration(
                                       color: tasks[index]["done"]
                                           ? Colors.green
                                           : Colors.white,
                                       border: Border.all(color: Colors.black),
-                                      borderRadius: BorderRadius.circular(4),
+                                      borderRadius: BorderRadius.circular(6),
                                     ),
                                     child: tasks[index]["done"]
                                         ? const Icon(Icons.check,
-                                        size: 18, color: Colors.white)
+                                        size: 18,
+                                        color: Colors.white)
                                         : null,
                                   ),
                                 ),
@@ -134,11 +146,15 @@ class _TasksScreenState extends State<TasksScreen> {
                                 const SizedBox(width: 15),
 
                                 // Task text
-                                Text(
-                                  tasks[index]["title"],
-                                  style: const TextStyle(
-                                    fontSize: 16,
-                                    fontWeight: FontWeight.w500,
+                                Expanded(
+                                  child: Text(
+                                    tasks[index]["title"],
+                                    style: TextStyle(
+                                      fontSize: 18,
+                                      decoration: tasks[index]["done"]
+                                          ? TextDecoration.lineThrough
+                                          : null,
+                                    ),
                                   ),
                                 ),
                               ],
@@ -149,10 +165,13 @@ class _TasksScreenState extends State<TasksScreen> {
                     ),
                   ),
 
+                  const SizedBox(height: 10),
+
                   // 🔹 Add Task Button
                   GestureDetector(
                     onTap: addTask,
                     child: Container(
+                      width: double.infinity,
                       padding: const EdgeInsets.symmetric(vertical: 18),
                       decoration: BoxDecoration(
                         color: const Color(0xFF8FA9C4),
@@ -161,14 +180,11 @@ class _TasksScreenState extends State<TasksScreen> {
                       child: Row(
                         mainAxisAlignment: MainAxisAlignment.center,
                         children: const [
-                          Icon(Icons.add, size: 26),
+                          Icon(Icons.add),
                           SizedBox(width: 10),
                           Text(
                             "Add Task",
-                            style: TextStyle(
-                              fontSize: 16,
-                              fontWeight: FontWeight.bold,
-                            ),
+                            style: TextStyle(fontSize: 18),
                           ),
                         ],
                       ),

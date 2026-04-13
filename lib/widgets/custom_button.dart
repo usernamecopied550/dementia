@@ -21,32 +21,42 @@ class CustomButton extends StatelessWidget {
       onTap: onPressed,
       child: Container(
         margin: const EdgeInsets.symmetric(vertical: 10),
-        padding: const EdgeInsets.all(16),
+        padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 16),
+
         decoration: BoxDecoration(
           color: AppColors.primary,
           borderRadius: BorderRadius.circular(25),
           boxShadow: [
             BoxShadow(
-              color: Colors.black.withOpacity(0.1),
+              color: Colors.black.withOpacity(0.08),
               blurRadius: 10,
               offset: const Offset(0, 5),
             ),
           ],
         ),
+
         child: Row(
           children: [
+            // 🔥 ICON CONTAINER
             Container(
+              width: 60,
+              height: 60,
               padding: const EdgeInsets.all(10),
+
               decoration: BoxDecoration(
-                color: Colors.white.withOpacity(0.3),
-                borderRadius: BorderRadius.circular(12),
+                color: Colors.white.withOpacity(0.2),
+                borderRadius: BorderRadius.circular(15),
               ),
+
               child: Image.asset(
                 imagePath,
-                width: 40,
+                fit: BoxFit.contain, // ✅ VERY IMPORTANT
               ),
             ),
+
             const SizedBox(width: 20),
+
+            // 🔥 TEXT
             Expanded(
               child: Text(
                 text,
@@ -57,6 +67,9 @@ class CustomButton extends StatelessWidget {
                 ),
               ),
             ),
+
+            // 🔥 OPTIONAL ARROW (nice UX)
+            const Icon(Icons.arrow_forward_ios, size: 16),
           ],
         ),
       ),
