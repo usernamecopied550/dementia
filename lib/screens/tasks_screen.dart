@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import '../data/app_data.dart';
+import '../models/task.dart';
 
 class TasksScreen extends StatefulWidget {
   const TasksScreen({super.key});
@@ -8,16 +10,11 @@ class TasksScreen extends StatefulWidget {
 }
 
 class _TasksScreenState extends State<TasksScreen> {
-  List<Map<String, dynamic>> tasks = [
-    {"title": "Take Medication", "done": false},
-    {"title": "Eat Breakfast", "done": false},
-    {"title": "Go for a walk", "done": false},
-    {"title": "Drink Water", "done": false},
-  ];
+  List<Task> tasks = AppData.tasks;
 
   void toggleTask(int index) {
     setState(() {
-      tasks[index]["done"] = !tasks[index]["done"];
+      tasks[index].isDone = !tasks[index].isDone;
     });
   }
 
@@ -44,10 +41,12 @@ class _TasksScreenState extends State<TasksScreen> {
               onPressed: () {
                 if (controller.text.trim().isNotEmpty) {
                   setState(() {
-                    tasks.add({
-                      "title": controller.text.trim(),
-                      "done": false,
-                    });
+                    tasks.add(
+                      Task(
+                        title: controller.text.trim(),
+                        isDone: false,
+                      ),
+                    );
                   });
                 }
                 Navigator.pop(context);
@@ -83,7 +82,7 @@ class _TasksScreenState extends State<TasksScreen> {
                     },
                   ),
 
-                  // 🔹 Title with calendar image
+                  // 🔹 Title
                   Row(
                     children: [
                       Image.asset(
@@ -122,20 +121,20 @@ class _TasksScreenState extends State<TasksScreen> {
                             child: Row(
                               children: [
 
-                                // Checkbox
+                                // ✅ Checkbox FIXED
                                 GestureDetector(
                                   onTap: () => toggleTask(index),
                                   child: Container(
                                     width: 26,
                                     height: 26,
                                     decoration: BoxDecoration(
-                                      color: tasks[index]["done"]
+                                      color: tasks[index].isDone
                                           ? Colors.green
                                           : Colors.white,
                                       border: Border.all(color: Colors.black),
                                       borderRadius: BorderRadius.circular(6),
                                     ),
-                                    child: tasks[index]["done"]
+                                    child: tasks[index].isDone
                                         ? const Icon(Icons.check,
                                         size: 18,
                                         color: Colors.white)
@@ -145,13 +144,13 @@ class _TasksScreenState extends State<TasksScreen> {
 
                                 const SizedBox(width: 15),
 
-                                // Task text
+                                // ✅ TEXT FIXED
                                 Expanded(
                                   child: Text(
-                                    tasks[index]["title"],
+                                    tasks[index].title,
                                     style: TextStyle(
                                       fontSize: 18,
-                                      decoration: tasks[index]["done"]
+                                      decoration: tasks[index].isDone
                                           ? TextDecoration.lineThrough
                                           : null,
                                     ),

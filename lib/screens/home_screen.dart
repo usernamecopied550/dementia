@@ -4,6 +4,8 @@ import '../widgets/custom_button.dart';
 import '../screens/medication_screen.dart';
 import '../screens/tasks_screen.dart';
 import 'family_screen.dart';
+import '../patient.dart';
+import '../patient_database.dart';
 
 /// 🔴 EMERGENCY SCREEN
 class PatientEmergencyScreen extends StatefulWidget {
@@ -28,6 +30,21 @@ class _PatientEmergencyScreenState
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: Colors.grey[200],
+
+      // ✅🔥 THIS IS THE FIX (BACK ARROW)
+      appBar: AppBar(
+        backgroundColor: Colors.transparent,
+        elevation: 0,
+        foregroundColor: Colors.black,
+
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back),
+          onPressed: () {
+            Navigator.pop(context);
+          },
+        ),
+      ),
+
       body: Center(
         child: Container(
           width: 400,
@@ -142,7 +159,6 @@ class HomeScreen extends StatelessWidget {
 
                   const SizedBox(height: 30),
 
-                  // 🔥 MEDICATION BUTTON
                   CustomButton(
                     text: "Take medication",
                     imagePath: 'assets/images/pill.png',
@@ -157,7 +173,6 @@ class HomeScreen extends StatelessWidget {
                     },
                   ),
 
-                  // 🔥 TASKS BUTTON
                   CustomButton(
                     text: "Today's Tasks",
                     imagePath: 'assets/images/calendar.png',
@@ -172,7 +187,6 @@ class HomeScreen extends StatelessWidget {
                     },
                   ),
 
-                  // FAMILY
                   CustomButton(
                     text: "Family",
                     imagePath: 'assets/images/family.png',
@@ -187,7 +201,6 @@ class HomeScreen extends StatelessWidget {
                     },
                   ),
 
-                  // EMERGENCY
                   CustomButton(
                     text: "I Need Help",
                     imagePath: 'assets/images/alert.png',

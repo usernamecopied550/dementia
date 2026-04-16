@@ -21,64 +21,84 @@ class _PatientEmergencyScreenState extends State<PatientEmergencyScreen> {
     return Scaffold(
       backgroundColor: Colors.grey[200],
 
-      body: Center(
-        child: Container(
-          width: 400,
-          padding: const EdgeInsets.all(16),
+      appBar: AppBar(
+        backgroundColor: Colors.transparent,
+        elevation: 0,
+        foregroundColor: Colors.black,
 
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
+        // 🔥 FORCE BACK BUTTON
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back),
+          onPressed: () {
+            Navigator.pop(context);
+          },
+        ),
+      ),
 
-              const Text(
-                "I Need Help",
-                style: TextStyle(
-                  fontSize: 28,
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
+      body: SafeArea(
+        child: Center(
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: 400),
+            child: Padding(
+              padding: const EdgeInsets.all(16),
 
-              const SizedBox(height: 40),
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.start,
+                children: [
 
-              // 🔴 Big Button
-              GestureDetector(
-                onTap: sendAlert,
-                child: Container(
-                  width: 200,
-                  height: 200,
-                  decoration: BoxDecoration(
-                    color: Colors.red,
-                    shape: BoxShape.circle,
-                    boxShadow: [
-                      BoxShadow(
-                        color: Colors.red.withOpacity(0.5),
-                        blurRadius: 20,
-                        spreadRadius: 5,
-                      ),
-                    ],
-                  ),
-                  child: const Center(
-                    child: Icon(
-                      Icons.warning,
-                      size: 80,
-                      color: Colors.white,
+                  const SizedBox(height: 40),
+
+                  const Text(
+                    "I Need Help",
+                    style: TextStyle(
+                      fontSize: 28,
+                      fontWeight: FontWeight.bold,
                     ),
                   ),
-                ),
-              ),
 
-              const SizedBox(height: 30),
+                  const SizedBox(height: 40),
 
-              if (alertSent)
-                const Text(
-                  "Help request sent!",
-                  style: TextStyle(
-                    fontSize: 20,
-                    color: Colors.red,
-                    fontWeight: FontWeight.bold,
+                  // 🔴 Big Emergency Button
+                  GestureDetector(
+                    onTap: sendAlert,
+                    child: Container(
+                      width: 200,
+                      height: 200,
+                      decoration: BoxDecoration(
+                        color: Colors.red,
+                        shape: BoxShape.circle,
+                        boxShadow: [
+                          BoxShadow(
+                            color: Colors.red.withOpacity(0.5),
+                            blurRadius: 20,
+                            spreadRadius: 5,
+                          ),
+                        ],
+                      ),
+                      child: const Center(
+                        child: Icon(
+                          Icons.warning,
+                          size: 80,
+                          color: Colors.white,
+                        ),
+                      ),
+                    ),
                   ),
-                ),
-            ],
+
+                  const SizedBox(height: 30),
+
+                  if (alertSent)
+                    const Text(
+                      "Help request sent!",
+                      style: TextStyle(
+                        fontSize: 20,
+                        color: Colors.red,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                ],
+              ),
+            ),
           ),
         ),
       ),
