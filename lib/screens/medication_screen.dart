@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
-import 'package:dimentia/models/medication.dart';
-import 'package:dimentia/data/app_data.dart';
+import 'package:dementia/models/medication.dart';
+import 'package:dementia/data/app_data.dart';
 
 class MedicationScreen extends StatefulWidget {
   const MedicationScreen({super.key});
