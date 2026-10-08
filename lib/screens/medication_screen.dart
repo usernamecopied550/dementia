@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:dementia/models/medication.dart';
-import 'package:dementia/data/app_data.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 
 class MedicationScreen extends StatefulWidget {
   const MedicationScreen({super.key});
@@ -10,7 +10,29 @@ class MedicationScreen extends StatefulWidget {
 }
 
 class _MedicationScreenState extends State<MedicationScreen> {
-  List<Medication> meds = AppData.medications;
+  List<Medication> meds = [];
+  Future<void> loadMedications() async {
+    final data = await Supabase.instance.client
+        .from('medications')
+        .select();
+
+    final loadedMeds = data.map<Medication>((row) {
+      return Medication(
+        name: row['name'] ?? '',
+        time: row['scheduled_time'] ?? '',
+        taken: false,
+      );
+    }).toList();
+
+    setState(() {
+      meds = loadedMeds;
+    });
+  }
+  @override
+  void initState() {
+    super.initState();
+    loadMedications();
+  }
 
   @override
   Widget build(BuildContext context) {
