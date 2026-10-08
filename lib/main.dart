@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'screens/home_screen.dart';
 import 'screens/caregiver_homescreen.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import 'screens/login_screen.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -19,9 +20,11 @@ class MyApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return const MaterialApp(
+    return  MaterialApp(
       debugShowCheckedModeBanner: false,
-      home: HomeScreen(), // 👈 PATIENT SCREEN NOW
+      home: Supabase.instance.client.auth.currentSession != null
+          ? const HomeScreen()
+          : const LoginScreen(), // 👈 PATIENT SCREEN NOW
     );
   }
 }

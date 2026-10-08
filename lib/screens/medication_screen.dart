@@ -18,6 +18,7 @@ class _MedicationScreenState extends State<MedicationScreen> {
 
     final loadedMeds = data.map<Medication>((row) {
       return Medication(
+        id: row['id'],
         name: row['name'] ?? '',
         time: row['scheduled_time'] ?? '',
         taken: false,

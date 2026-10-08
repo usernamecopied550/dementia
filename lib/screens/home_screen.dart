@@ -6,6 +6,8 @@ import '../screens/tasks_screen.dart';
 import 'family_screen.dart';
 import '../patient.dart';
 import '../patient_database.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
+import 'login_screen.dart';
 
 /// 🔴 EMERGENCY SCREEN
 class PatientEmergencyScreen extends StatefulWidget {
@@ -112,11 +114,48 @@ class HomeScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+
     return Scaffold(
       backgroundColor: AppColors.background,
 
+      appBar: AppBar(
+        backgroundColor: AppColors.background,
+        elevation: 0,
+        automaticallyImplyLeading: false,
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.logout),
+            tooltip: 'Log out',
+            onPressed: () async {
+              try {
+                await Supabase.instance.client.auth.signOut();
+
+                if (!context.mounted) return;
+
+                Navigator.pushAndRemoveUntil(
+                  context,
+                  MaterialPageRoute(
+                    builder: (context) => const LoginScreen(),
+                  ),
+                      (route) => false,
+                );
+              } catch (error) {
+                if (!context.mounted) return;
+
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(
+                    content: Text('Could not log out. Please try again.'),
+                  ),
+                );
+              }
+            },
+          ),
+        ],
+      ),
+
       body: Center(
-        child: Container(
+
+      child: Container(
           width: 400,
           padding: const EdgeInsets.all(16),
 
