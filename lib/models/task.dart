@@ -1,5 +1,3 @@
-import '../models/task.dart';
-
 class Task {
   String title;
   bool isDone;

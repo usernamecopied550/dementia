@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'home_screen.dart';
+import 'caregiver_homescreen.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -12,6 +13,7 @@ class LoginScreen extends StatefulWidget {
 class _LoginScreenState extends State<LoginScreen> {
   final emailController = TextEditingController();
   final passwordController = TextEditingController();
+
 
   Future<void> login() async {
     final email = emailController.text.trim();
@@ -27,19 +29,71 @@ class _LoginScreenState extends State<LoginScreen> {
     }
 
     try {
-      await Supabase.instance.client.auth.signInWithPassword(
+      final supabase = Supabase.instance.client;
+
+      // Step 1: Log in using Supabase Authentication
+      final response = await supabase.auth.signInWithPassword(
         email: email,
         password: password,
       );
 
+      final user = response.user;
+
+      if (user == null) {
+        throw Exception('Login failed.');
+      }
+
+      // Step 2: Find this user's role in the profiles table
+      final profile = await supabase
+          .from('profiles')
+          .select('role')
+          .eq('id', user.id)
+          .maybeSingle();
+
       if (!mounted) return;
 
-      Navigator.pushReplacement(
-        context,
-        MaterialPageRoute(
-          builder: (context) => const HomeScreen(),
-        ),
-      );
+      // Step 3: Check whether the user has a profile
+      if (profile == null) {
+        await supabase.auth.signOut();
+
+        if (!mounted) return;
+
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('No profile found for this account.'),
+          ),
+        );
+        return;
+      }
+
+      final role = profile['role'];
+
+      // Step 4: Open the correct dashboard
+      if (role == 'patient') {
+        Navigator.pushReplacement(
+          context,
+          MaterialPageRoute(
+            builder: (context) => const HomeScreen(),
+          ),
+        );
+      } else if (role == 'caregiver') {
+        Navigator.pushReplacement(
+          context,
+          MaterialPageRoute(
+            builder: (context) => const CaregiverHomeScreen(),
+          ),
+        );
+      } else {
+        await supabase.auth.signOut();
+
+        if (!mounted) return;
+
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Invalid account role.'),
+          ),
+        );
+      }
     } on AuthException catch (error) {
       if (!mounted) return;
 
@@ -56,6 +110,7 @@ class _LoginScreenState extends State<LoginScreen> {
       );
     }
   }
+
 
 
   @override
