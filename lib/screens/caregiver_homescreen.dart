@@ -2,7 +2,9 @@ import 'package:flutter/material.dart';
 import 'patient_info_screen.dart';
 import 'caregiver_medications_screen.dart';
 import 'caregiver_tasks_screen.dart';
-import 'caregiver_emergency_screen.dart'; // ✅ IMPORTANT
+import 'caregiver_emergency_screen.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
+import 'login_screen.dart';
 
 class CaregiverHomeScreen extends StatelessWidget {
   const CaregiverHomeScreen({super.key});
@@ -99,6 +101,25 @@ class CaregiverHomeScreen extends StatelessWidget {
                       ),
                     );
                   },
+                ),
+                const SizedBox(height: 30),
+
+                TextButton.icon(
+                  onPressed: () async {
+                    await Supabase.instance.client.auth.signOut();
+
+                    if (!context.mounted) return;
+
+                    Navigator.pushAndRemoveUntil(
+                      context,
+                      MaterialPageRoute(
+                        builder: (context) => const LoginScreen(),
+                      ),
+                          (route) => false,
+                    );
+                  },
+                  icon: const Icon(Icons.logout),
+                  label: const Text('Logout'),
                 ),
               ],
             ),
