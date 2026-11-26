@@ -127,12 +127,19 @@ class _HomeScreenState extends State<HomeScreen> {
   late Future<List<Map<String, dynamic>>> tasksFuture;
 
   Timer? refreshTimer;
+  final Set<String> shownReminders = {};
+
+  bool isReminderShowing = false;
 
   @override
   void initState() {
     super.initState();
 
     tasksFuture = taskService.loadTasksWithCompletion();
+
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      checkActivityReminders();
+    });
 
     refreshTimer = Timer.periodic(
       const Duration(minutes: 1),
@@ -148,6 +155,137 @@ class _HomeScreenState extends State<HomeScreen> {
     setState(() {
       tasksFuture = taskService.loadTasksWithCompletion();
     });
+    checkActivityReminders();
+  }
+  @override
+  void dispose() {
+    refreshTimer?.cancel();
+    super.dispose();
+  }
+
+  Future<void> checkActivityReminders() async {
+    if (!mounted || isReminderShowing) return;
+
+    try {
+      final tasks = await tasksFuture;
+
+      if (!mounted || isReminderShowing) return;
+
+      // Only show reminders when the dashboard is active.
+      if (ModalRoute.of(context)?.isCurrent != true) return;
+
+      final now = DateTime.now();
+
+      final todayString =
+          '${now.year}-${now.month}-${now.day}';
+
+      for (final task in tasks) {
+
+        // Ignore completed tasks.
+        if (task['isDone'] == true) continue;
+
+        final time = task['scheduled_time']
+            .toString()
+            .split(':');
+
+        final scheduledTime = DateTime(
+          now.year,
+          now.month,
+          now.day,
+          int.parse(time[0]),
+          int.parse(time[1]),
+        );
+
+        final difference = now.difference(scheduledTime);
+
+        final reminderKey = '${task['id']}-$todayString';
+
+        // Show reminders for recently due activities.
+        if (!difference.isNegative &&
+            difference.inMinutes < 5 &&
+            !shownReminders.contains(reminderKey)) {
+
+          shownReminders.add(reminderKey);
+
+          await showActivityReminder(task);
+
+          break;
+        }
+      }
+    } catch (error) {
+      debugPrint('Could not check reminders: $error');
+    }
+  }
+  Future<void> showActivityReminder(
+      Map<String, dynamic> task,
+      ) async {
+    if (!mounted || isReminderShowing) return;
+
+    isReminderShowing = true;
+
+    try {
+      final viewTasks = await showDialog<bool>(
+        context: context,
+        barrierDismissible: false,
+        builder: (dialogContext) {
+          return AlertDialog(
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(20),
+            ),
+            title: const Column(
+              children: [
+                Icon(
+                  Icons.notifications_active,
+                  size: 50,
+                  color: Color(0xFF527CAA),
+                ),
+                SizedBox(height: 15),
+                Text(
+                  'Activity Reminder',
+                  textAlign: TextAlign.center,
+                ),
+              ],
+            ),
+            content: Text(
+              "It's time for your activity:\n\n${task['title']}",
+              textAlign: TextAlign.center,
+              style: const TextStyle(
+                fontSize: 22,
+                fontWeight: FontWeight.w500,
+              ),
+            ),
+            actionsAlignment: MainAxisAlignment.center,
+            actions: [
+              ElevatedButton(
+                onPressed: () {
+                  Navigator.pop(dialogContext, true);
+                },
+                child: const Text("View Today's Tasks"),
+              ),
+              TextButton(
+                onPressed: () {
+                  Navigator.pop(dialogContext, false);
+                },
+                child: const Text('Dismiss'),
+              ),
+            ],
+          );
+        },
+      );
+
+      if (viewTasks == true && mounted) {
+        await Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (context) => const TasksScreen(),
+          ),
+        );
+
+        refreshTasks();
+      }
+    } finally {
+      isReminderShowing = false;
+    }
   }
 
   Widget buildActivityBanners() {
