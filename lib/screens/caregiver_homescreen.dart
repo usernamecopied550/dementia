@@ -5,6 +5,7 @@ import 'caregiver_tasks_screen.dart';
 import 'caregiver_emergency_screen.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'login_screen.dart';
+import 'welcome_screen.dart';
 
 class CaregiverHomeScreen extends StatelessWidget {
   const CaregiverHomeScreen({super.key});
@@ -113,7 +114,7 @@ class CaregiverHomeScreen extends StatelessWidget {
                     Navigator.pushAndRemoveUntil(
                       context,
                       MaterialPageRoute(
-                        builder: (context) => const LoginScreen(),
+                        builder: (context) => const WelcomeScreen(),
                       ),
                           (route) => false,
                     );

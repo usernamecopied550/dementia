@@ -10,6 +10,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import 'login_screen.dart';
 import '../services/task_service.dart';
 import 'dart:async';
+import 'welcome_screen.dart';
 
 /// 🔴 EMERGENCY SCREEN
 class PatientEmergencyScreen extends StatefulWidget {
@@ -456,7 +457,7 @@ class _HomeScreenState extends State<HomeScreen> {
                 Navigator.pushAndRemoveUntil(
                   context,
                   MaterialPageRoute(
-                    builder: (context) => const LoginScreen(),
+                    builder: (context) => const WelcomeScreen(),
                   ),
                       (route) => false,
                 );
