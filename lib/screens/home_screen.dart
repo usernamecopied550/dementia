@@ -8,6 +8,8 @@ import '../patient.dart';
 import '../patient_database.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'login_screen.dart';
+import '../services/task_service.dart';
+import 'dart:async';
 
 /// 🔴 EMERGENCY SCREEN
 class PatientEmergencyScreen extends StatefulWidget {
@@ -111,8 +113,187 @@ class _PatientEmergencyScreenState
 /// 🏠 PATIENT HOME SCREEN
 
 
-class HomeScreen extends StatelessWidget {
+class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
+
+  @override
+  State<HomeScreen> createState() => _HomeScreenState();
+}
+
+class _HomeScreenState extends State<HomeScreen> {
+
+  final TaskService taskService = TaskService();
+
+  late Future<List<Map<String, dynamic>>> tasksFuture;
+
+  Timer? refreshTimer;
+
+  @override
+  void initState() {
+    super.initState();
+
+    tasksFuture = taskService.loadTasksWithCompletion();
+
+    refreshTimer = Timer.periodic(
+      const Duration(minutes: 1),
+          (timer) {
+        refreshTasks();
+      },
+    );
+  }
+
+  void refreshTasks() {
+    if (!mounted) return;
+
+    setState(() {
+      tasksFuture = taskService.loadTasksWithCompletion();
+    });
+  }
+
+  Widget buildActivityBanners() {
+    return FutureBuilder<List<Map<String, dynamic>>>(
+      future: tasksFuture,
+      builder: (context, snapshot) {
+        if (snapshot.connectionState == ConnectionState.waiting) {
+          return const Center(
+            child: CircularProgressIndicator(),
+          );
+        }
+
+        if (snapshot.hasError) {
+          return const Text(
+            'Could not load activities.',
+          );
+        }
+
+        final tasks = snapshot.data ?? [];
+        final now = DateTime.now();
+
+        final upcomingTasks = <Map<String, dynamic>>[];
+        final overdueTasks = <Map<String, dynamic>>[];
+
+        for (final task in tasks) {
+          if (task['isDone'] == true) continue;
+
+          final time = task['scheduled_time'].toString().split(':');
+
+          final scheduledTime = DateTime(
+            now.year,
+            now.month,
+            now.day,
+            int.parse(time[0]),
+            int.parse(time[1]),
+          );
+
+          if (scheduledTime.isBefore(now)) {
+            overdueTasks.add(task);
+          } else {
+            upcomingTasks.add(task);
+          }
+        }
+
+        final nextTask =
+        upcomingTasks.isNotEmpty ? upcomingTasks.first : null;
+
+        String activityTitle;
+        String activityTime = '';
+
+        if (nextTask != null) {
+          activityTitle = nextTask['title'].toString();
+          activityTime = nextTask['scheduled_time']
+              .toString()
+              .substring(0, 5);
+        } else if (tasks.isEmpty) {
+          activityTitle = 'No activities scheduled today';
+        } else if (overdueTasks.isNotEmpty) {
+          activityTitle = 'No more upcoming activities today';
+        } else {
+          activityTitle = 'All done for today!';
+        }
+
+        return Column(
+          children: [
+            // NEXT ACTIVITY BANNER
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.all(18),
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(16),
+              ),
+              child: Column(
+                children: [
+                  const Text(
+                    'YOUR NEXT ACTIVITY',
+                    style: TextStyle(
+                      fontSize: 14,
+                      color: Colors.black54,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                  const SizedBox(height: 10),
+                  Text(
+                    activityTitle,
+                    textAlign: TextAlign.center,
+                    style: const TextStyle(
+                      fontSize: 22,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                  if (activityTime.isNotEmpty) ...[
+                    const SizedBox(height: 5),
+                    Text(
+                      activityTime,
+                      style: const TextStyle(fontSize: 18),
+                    ),
+                  ],
+                ],
+              ),
+            ),
+
+            // OVERDUE ACTIVITIES BANNER
+            if (overdueTasks.isNotEmpty) ...[
+              const SizedBox(height: 15),
+              Container(
+                width: double.infinity,
+                padding: const EdgeInsets.all(18),
+                decoration: BoxDecoration(
+                  color: const Color(0xFFFFF0D6),
+                  borderRadius: BorderRadius.circular(16),
+                ),
+                child: Column(
+                  children: [
+                    const Icon(
+                      Icons.access_time,
+                      color: Colors.orange,
+                      size: 30,
+                    ),
+                    const SizedBox(height: 8),
+                    Text(
+                      overdueTasks.length == 1
+                          ? '1 overdue activity'
+                          : '${overdueTasks.length} overdue activities',
+                      style: const TextStyle(
+                        fontSize: 20,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                    const SizedBox(height: 5),
+                    const Text(
+                      "Check your Today's Tasks list.",
+                      textAlign: TextAlign.center,
+                      style: TextStyle(fontSize: 16),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ],
+        );
+      },
+    );
+  }
+
 
   @override
   Widget build(BuildContext context) {
@@ -189,56 +370,22 @@ class HomeScreen extends StatelessWidget {
 
                   const SizedBox(height: 25),
 
-// Temporary example.
-// Later this will come from Supabase.
-                  Container(
-                    width: double.infinity,
-                    padding: const EdgeInsets.all(18),
-                    decoration: BoxDecoration(
-                      color: Colors.white,
-                      borderRadius: BorderRadius.circular(16),
-                    ),
-                    child: const Column(
-                      children: [
-                        Text(
-                          "YOUR NEXT ACTIVITY",
-                          style: TextStyle(
-                            fontSize: 14,
-                            color: Colors.black54,
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
-                        SizedBox(height: 10),
-                        Text(
-                          "Eat breakfast",
-                          style: TextStyle(
-                            fontSize: 22,
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
-                        SizedBox(height: 5),
-                        Text(
-                          "9:00 AM",
-                          style: TextStyle(fontSize: 18),
-                        ),
-                      ],
-                    ),
-                  ),
-
+                  buildActivityBanners(),
                   const SizedBox(height: 30),
 
 // TODAY'S TASKS
                   CustomButton(
                     text: "Today's Tasks",
                     imagePath: 'assets/images/calendar.png',
-                    onPressed: () {
-                      Navigator.push(
+                    onPressed: () async {
+                      await Navigator.push(
                         context,
                         MaterialPageRoute(
-                          builder: (context) =>
-                          const TasksScreen(),
+                          builder: (context) => const TasksScreen(),
                         ),
                       );
+
+                      refreshTasks();
                     },
                   ),
 

@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import '../services/task_service.dart';
 
 class TasksScreen extends StatefulWidget {
   const TasksScreen({super.key});
@@ -10,50 +11,8 @@ class TasksScreen extends StatefulWidget {
 
 class _TasksScreenState extends State<TasksScreen> {
 
-  Future<List<Map<String, dynamic>>> loadPatientTasks() async {
-    final supabase = Supabase.instance.client;
-    final patientId = supabase.auth.currentUser?.id;
 
-    if (patientId == null) {
-      return [];
-    }
 
-    final today = DateTime.now();
-    final todayString =
-        '${today.year}-${today.month.toString().padLeft(2, '0')}-'
-        '${today.day.toString().padLeft(2, '0')}';
-
-    final response = await supabase
-        .from('tasks')
-        .select()
-        .eq('patient_id', patientId)
-        .or('is_recurring.eq.true,scheduled_date.eq.$todayString')
-        .order('scheduled_time', ascending: true);
-
-    return List<Map<String, dynamic>>.from(response);
-  }
-
-  Future<Set<int>> loadCompletedTaskIds() async {
-    final supabase = Supabase.instance.client;
-    final patientId = supabase.auth.currentUser?.id;
-
-    if (patientId == null) return {};
-
-    final today = DateTime.now();
-    final todayString =
-        '${today.year}-${today.month.toString().padLeft(2, '0')}-'
-        '${today.day.toString().padLeft(2, '0')}';
-
-    final response = await supabase
-        .from('task_completions')
-        .select('task_id')
-        .eq('patient_id', patientId)
-        .eq('completed_date', todayString);
-
-    return response
-        .map<int>((row) => (row['task_id'] as num).toInt())
-        .toSet();
-  }
 
   Future<void> toggleTaskCompletion(
       int taskId,
@@ -87,17 +46,7 @@ class _TasksScreenState extends State<TasksScreen> {
     }
   }
 
-  Future<List<Map<String, dynamic>>> loadTasksWithCompletion() async {
-    final tasks = await loadPatientTasks();
-    final completedIds = await loadCompletedTaskIds();
 
-    for (final task in tasks) {
-      final taskId = (task['id'] as num).toInt();
-      task['isDone'] = completedIds.contains(taskId);
-    }
-
-    return tasks;
-  }
 
   @override
   Widget build(BuildContext context) {
@@ -147,7 +96,7 @@ class _TasksScreenState extends State<TasksScreen> {
 
             Expanded(
               child: FutureBuilder<List<Map<String, dynamic>>>(
-                future: loadTasksWithCompletion(),
+                future: TaskService().loadTasksWithCompletion(),
                 builder: (context, snapshot) {
                   if (snapshot.connectionState == ConnectionState.waiting) {
                     return const Center(
