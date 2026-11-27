@@ -1,0 +1,34 @@
+table_name,constraint_name,constraint_definition
+caregiver_patients,caregiver_patients_caregiver_id_fkey,FOREIGN KEY (caregiver_id) REFERENCES profiles(id) ON DELETE CASCADE
+caregiver_patients,caregiver_patients_caregiver_id_patient_id_key,"UNIQUE (caregiver_id, patient_id)"
+caregiver_patients,caregiver_patients_check,CHECK ((caregiver_id <> patient_id))
+caregiver_patients,caregiver_patients_patient_id_fkey,FOREIGN KEY (patient_id) REFERENCES profiles(id) ON DELETE CASCADE
+caregiver_patients,caregiver_patients_pkey,PRIMARY KEY (id)
+caregiver_patients,one_caregiver_per_patient,UNIQUE (patient_id)
+caregiver_patients,one_patient_per_caregiver,UNIQUE (caregiver_id)
+contacts,contacts_created_by_fkey,FOREIGN KEY (created_by) REFERENCES profiles(id)
+contacts,contacts_patient_id_fkey,FOREIGN KEY (patient_id) REFERENCES profiles(id) ON DELETE CASCADE
+contacts,contacts_pkey,PRIMARY KEY (id)
+contacts,contacts_relationship_check,"CHECK ((relationship = ANY (ARRAY['daughter'::text, 'son'::text, 'spouse'::text, 'grandchild'::text, 'friend'::text, 'doctor'::text, 'neighbour'::text, 'other'::text])))"
+medication_logs,medication_logs_medication_id_fkey,FOREIGN KEY (medication_id) REFERENCES medications(id)
+medication_logs,medication_logs_pkey,PRIMARY KEY (id)
+medications,medications_pkey,PRIMARY KEY (id)
+pairing_attempts,pairing_attempts_caregiver_id_fkey,FOREIGN KEY (caregiver_id) REFERENCES profiles(id) ON DELETE CASCADE
+pairing_attempts,pairing_attempts_pkey,PRIMARY KEY (caregiver_id)
+pairing_codes,pairing_codes_code_key,UNIQUE (code)
+pairing_codes,pairing_codes_patient_id_fkey,FOREIGN KEY (patient_id) REFERENCES profiles(id) ON DELETE CASCADE
+pairing_codes,pairing_codes_pkey,PRIMARY KEY (id)
+pairing_codes,valid_expiry,CHECK ((expires_at > created_at))
+pairing_codes,valid_pairing_code,CHECK ((code ~ '^[0-9]{6}$'::text))
+profiles,profiles_id_fkey,FOREIGN KEY (id) REFERENCES auth.users(id) ON DELETE CASCADE
+profiles,profiles_pkey,PRIMARY KEY (id)
+profiles,profiles_role_check,"CHECK ((role = ANY (ARRAY['patient'::text, 'caregiver'::text])))"
+task_completions,task_completions_patient_id_fkey,FOREIGN KEY (patient_id) REFERENCES profiles(id) ON DELETE CASCADE
+task_completions,task_completions_pkey,PRIMARY KEY (id)
+task_completions,task_completions_task_id_completed_date_key,"UNIQUE (task_id, completed_date)"
+task_completions,task_completions_task_id_fkey,FOREIGN KEY (task_id) REFERENCES tasks(id) ON DELETE CASCADE
+tasks,tasks_caregiver_id_fkey,FOREIGN KEY (caregiver_id) REFERENCES profiles(id) ON DELETE CASCADE
+tasks,tasks_caregiver_id_patient_id_fkey,"FOREIGN KEY (caregiver_id, patient_id) REFERENCES caregiver_patients(caregiver_id, patient_id)"
+tasks,tasks_check,CHECK ((((is_recurring = true) AND (scheduled_date IS NULL)) OR ((is_recurring = false) AND (scheduled_date IS NOT NULL))))
+tasks,tasks_patient_id_fkey,FOREIGN KEY (patient_id) REFERENCES profiles(id) ON DELETE CASCADE
+tasks,tasks_pkey,PRIMARY KEY (id)

@@ -1,0 +1,33 @@
+tablename,policyname,permissive,roles,cmd,qual,with_check
+caregiver_patients,Caregivers can view their patient links,PERMISSIVE,{authenticated},SELECT,(caregiver_id = ( SELECT auth.uid() AS uid)),null
+caregiver_patients,Patients can view their caregiver links,PERMISSIVE,{authenticated},SELECT,(patient_id = ( SELECT auth.uid() AS uid)),null
+contacts,linked caregiver manages contacts,PERMISSIVE,{authenticated},ALL,"(EXISTS ( SELECT 1
+   FROM caregiver_patients cp
+  WHERE ((cp.caregiver_id = auth.uid()) AND (cp.patient_id = contacts.patient_id))))","(EXISTS ( SELECT 1
+   FROM caregiver_patients cp
+  WHERE ((cp.caregiver_id = auth.uid()) AND (cp.patient_id = contacts.patient_id))))"
+contacts,patient reads own contacts,PERMISSIVE,{authenticated},SELECT,(patient_id = auth.uid()),null
+medications,Enable read access for all users,PERMISSIVE,{public},SELECT,true,null
+profiles,Users can read their own profile,PERMISSIVE,{authenticated},SELECT,(auth.uid() = id),null
+profiles,Users can view linked profiles,PERMISSIVE,{authenticated},SELECT,"(EXISTS ( SELECT 1
+   FROM caregiver_patients cp
+  WHERE (((cp.caregiver_id = auth.uid()) AND (cp.patient_id = profiles.id)) OR ((cp.patient_id = auth.uid()) AND (cp.caregiver_id = profiles.id)))))",null
+task_completions,Caregivers can view patient completions,PERMISSIVE,{authenticated},SELECT,"(EXISTS ( SELECT 1
+   FROM tasks t
+  WHERE ((t.id = task_completions.task_id) AND (t.caregiver_id = ( SELECT auth.uid() AS uid)) AND (t.patient_id = task_completions.patient_id))))",null
+task_completions,Patients can complete their tasks,PERMISSIVE,{authenticated},INSERT,null,"((patient_id = ( SELECT auth.uid() AS uid)) AND (EXISTS ( SELECT 1
+   FROM tasks t
+  WHERE ((t.id = task_completions.task_id) AND (t.patient_id = ( SELECT auth.uid() AS uid))))))"
+task_completions,Patients can undo task completion,PERMISSIVE,{authenticated},DELETE,"((patient_id = ( SELECT auth.uid() AS uid)) AND (EXISTS ( SELECT 1
+   FROM tasks t
+  WHERE ((t.id = task_completions.task_id) AND (t.patient_id = ( SELECT auth.uid() AS uid))))))",null
+task_completions,Patients can view their completions,PERMISSIVE,{authenticated},SELECT,"((patient_id = ( SELECT auth.uid() AS uid)) AND (EXISTS ( SELECT 1
+   FROM tasks t
+  WHERE ((t.id = task_completions.task_id) AND (t.patient_id = task_completions.patient_id)))))",null
+tasks,Caregivers can create tasks,PERMISSIVE,{authenticated},INSERT,null,(caregiver_id = ( SELECT auth.uid() AS uid))
+tasks,Caregivers can delete tasks,PERMISSIVE,{authenticated},DELETE,(caregiver_id = ( SELECT auth.uid() AS uid)),null
+tasks,Caregivers can update tasks,PERMISSIVE,{authenticated},UPDATE,(caregiver_id = ( SELECT auth.uid() AS uid)),"((caregiver_id = ( SELECT auth.uid() AS uid)) AND (EXISTS ( SELECT 1
+   FROM caregiver_patients cp
+  WHERE ((cp.caregiver_id = tasks.caregiver_id) AND (cp.patient_id = tasks.patient_id)))))"
+tasks,Caregivers can view assigned tasks,PERMISSIVE,{authenticated},SELECT,(caregiver_id = ( SELECT auth.uid() AS uid)),null
+tasks,Patients can view their tasks,PERMISSIVE,{authenticated},SELECT,(patient_id = ( SELECT auth.uid() AS uid)),null
