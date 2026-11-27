@@ -250,11 +250,7 @@ class _SignupScreenState extends State<SignupScreen> {
                         : const Text(
                       'Create Account',
                       style: TextStyle(fontSize: 18),
-                    ),git add lib/main.dart
-                  git add lib/screens/caregiver_homescreen.dart
-                  git add lib/screens/home_screen.dart
-                  git add lib/screens/signup_screen.dart
-                  git add lib/screens/welcome_screen.dart
+                    ),
                   ),
                 ),
               ],
