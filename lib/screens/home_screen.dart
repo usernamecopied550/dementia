@@ -11,6 +11,8 @@ import 'login_screen.dart';
 import '../services/task_service.dart';
 import 'dart:async';
 import 'welcome_screen.dart';
+import 'patient_pairing_screen.dart';
+import '../services/pairing_service.dart';
 
 /// 🔴 EMERGENCY SCREEN
 class PatientEmergencyScreen extends StatefulWidget {
@@ -126,6 +128,8 @@ class _HomeScreenState extends State<HomeScreen> {
   final TaskService taskService = TaskService();
 
   late Future<List<Map<String, dynamic>>> tasksFuture;
+  final pairingService = PairingService();
+  late Future<String?> linkedCaregiverFuture;
 
   Timer? refreshTimer;
   final Set<String> shownReminders = {};
@@ -135,6 +139,8 @@ class _HomeScreenState extends State<HomeScreen> {
   @override
   void initState() {
     super.initState();
+    linkedCaregiverFuture =
+        pairingService.getLinkedPersonName('patient');
 
     tasksFuture = taskService.loadTasksWithCompletion();
 
@@ -432,8 +438,120 @@ class _HomeScreenState extends State<HomeScreen> {
       },
     );
   }
+  Widget buildConnectionBanner() {
+    return FutureBuilder<String?>(
+      future: linkedCaregiverFuture,
+      builder: (context, snapshot) {
+        if (snapshot.connectionState == ConnectionState.waiting) {
+          return const LinearProgressIndicator();
+        }
 
+        if (snapshot.hasError) {
+          return TextButton(
+            onPressed: () {
+              setState(() {
+                linkedCaregiverFuture =
+                    pairingService.getLinkedPersonName('patient');
+              });
+            },
+            child: const Text('Could not load caregiver. Retry'),
+          );
+        }
 
+        final caregiverName = snapshot.data;
+
+        return Container(
+          width: double.infinity,
+          padding: const EdgeInsets.all(16),
+          decoration: BoxDecoration(
+            color: Colors.blue[50],
+            borderRadius: BorderRadius.circular(16),
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  const Icon(
+                    Icons.people_outline,
+                    color: Colors.blue,
+                    size: 32,
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          caregiverName == null
+                              ? 'No caregiver linked'
+                              : 'Your caregiver',
+                          style: const TextStyle(fontSize: 16),
+                        ),
+                        if (caregiverName != null)
+                          Text(
+                            caregiverName,
+                            style: const TextStyle(
+                              fontSize: 22,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+
+              const SizedBox(height: 12),
+
+              if (caregiverName == null)
+                SizedBox(
+                  width: double.infinity,
+                  child: ElevatedButton(
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: Colors.blue,
+                      foregroundColor: Colors.white,
+                    ),
+                    onPressed: () async {
+                      await Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (context) =>
+                          const PatientPairingScreen(),
+                        ),
+                      );
+
+                      if (!mounted) return;
+
+                      setState(() {
+                        linkedCaregiverFuture =
+                            pairingService.getLinkedPersonName('patient');
+                      });
+                    },
+                    child: const Text('Link a Caregiver'),
+                  ),
+                )
+              else
+                const Row(
+                  children: [
+                    Icon(
+                      Icons.check_circle,
+                      color: Colors.green,
+                      size: 18,
+                    ),
+                    SizedBox(width: 6),
+                    Text(
+                      'Connected',
+                      style: TextStyle(color: Colors.green),
+                    ),
+                  ],
+                ),
+            ],
+          ),
+        );
+      },
+    );
+  }
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -488,7 +606,7 @@ class _HomeScreenState extends State<HomeScreen> {
                   const SizedBox(height: 20),
 
                   const Text(
-                    "Good Morning!",
+                    "Hello!",
                     textAlign: TextAlign.center,
                     style: TextStyle(
                       fontSize: 36,
@@ -497,6 +615,11 @@ class _HomeScreenState extends State<HomeScreen> {
                   ),
 
                   const SizedBox(height: 12),
+
+                  buildConnectionBanner(),
+
+
+                  const SizedBox(height: 20),
 
                   const Text(
                     "Here are your activities for today.",
