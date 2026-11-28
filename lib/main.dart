@@ -24,9 +24,18 @@ class MyApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return const MaterialApp(
+    return MaterialApp(
       debugShowCheckedModeBanner: false,
-      home: AuthCheckScreen(),
+      builder: (context, child) => ColoredBox(
+        color: const Color(0xFFDDE3EA),
+        child: Center(
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: 430),
+            child: child!,
+          ),
+        ),
+      ),
+      home: const AuthCheckScreen(),
     );
   }
 }
