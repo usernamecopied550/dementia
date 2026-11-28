@@ -1,8 +1,8 @@
+import '../models/contact.dart';
 import '../models/medication.dart';
 import '../models/task.dart';
 
 class AppData {
-  // ✅ ADD DATA HERE (THIS WAS MISSING)
   static List<Medication> medications = [
     Medication(
       name: "Paracetamol",
@@ -23,4 +23,8 @@ class AppData {
     Task(title: "Drink Water", isDone: false),
     Task(title: "Groceries", isDone: false),
   ];
+
+  // People the patient knows (added by the caregiver on the Contacts screen).
+  // NOTE: stored in memory for now — they reset when the app restarts.
+  static List<Contact> contacts = [];
 }

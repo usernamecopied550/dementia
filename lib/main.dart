@@ -1,4 +1,3 @@
-
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
@@ -22,9 +21,20 @@ class MyApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return const MaterialApp(
+    return MaterialApp(
       debugShowCheckedModeBanner: false,
-      home: AuthCheckScreen(),
+      // Keeps the app phone-sized on wide screens (Edge/desktop).
+      // On a real phone this changes nothing.
+      builder: (context, child) => ColoredBox(
+        color: const Color(0xFFDDE3EA),
+        child: Center(
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: 430),
+            child: child!,
+          ),
+        ),
+      ),
+      home: const AuthCheckScreen(),
     );
   }
 }
@@ -37,7 +47,7 @@ class AuthCheckScreen extends StatefulWidget {
 }
 
 class _AuthCheckScreenState extends State<AuthCheckScreen> {
-  late final Future<String?> roleFuture;
+  late Future<String?> roleFuture;
 
   @override
   void initState() {

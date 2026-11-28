@@ -1,100 +1,273 @@
 import 'package:flutter/material.dart';
 
+import '../constants/colors.dart';
+import '../data/app_data.dart';
+import '../widgets/caregiver_widgets.dart';
+
+/// Caregiver's view of the patient profile.
 class PatientInfoScreen extends StatelessWidget {
-  const PatientInfoScreen({super.key});
+  final VoidCallback? onOpenContacts;
+
+  const PatientInfoScreen({super.key, this.onOpenContacts});
+
+  static const _mainContact = '+212 6 25 34 52';
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: Colors.grey[200],
-      appBar: AppBar(
-        backgroundColor: Colors.transparent,
-        elevation: 0,
-        centerTitle: true,
-        title: const Text(
-          "Patient Info",
-          style: TextStyle(
-            color: Colors.black,
-            fontWeight: FontWeight.bold,
+    final contacts = AppData.contacts;
+
+    return ListView(
+      padding: EdgeInsets.zero,
+      children: [
+        // Blue header
+        Container(
+          decoration: const BoxDecoration(
+            color: AppColors.deepBlue,
+            borderRadius: BorderRadius.vertical(bottom: Radius.circular(36)),
+          ),
+          clipBehavior: Clip.antiAlias,
+          child: Stack(
+            children: [
+              Positioned(
+                left: -60,
+                top: -80,
+                child: _circle(220, const Color(0x4D8FAAC3)),
+              ),
+              Positioned(
+                right: -50,
+                bottom: -70,
+                child: _circle(180, const Color(0x388FAAC3)),
+              ),
+              SafeArea(
+                bottom: false,
+                child: Padding(
+                  padding: const EdgeInsets.fromLTRB(20, 16, 20, 28),
+                  child: Column(
+                    children: [
+                      const SizedBox(
+                        height: 44,
+                        child: Center(
+                          child: Text('Patient profile',
+                              style: TextStyle(
+                                  color: Colors.white,
+                                  fontSize: 16,
+                                  fontWeight: FontWeight.w700)),
+                        ),
+                      ),
+                      const SizedBox(height: 8),
+                      Container(
+                        width: 104,
+                        height: 104,
+                        alignment: Alignment.center,
+                        decoration: BoxDecoration(
+                          color: AppColors.lightBlue,
+                          shape: BoxShape.circle,
+                          border: Border.all(color: AppColors.blue, width: 4),
+                        ),
+                        child: const Text('JD',
+                            style: TextStyle(
+                                color: AppColors.deepBlue,
+                                fontSize: 34,
+                                fontWeight: FontWeight.w800)),
+                      ),
+                      const SizedBox(height: 12),
+                      const Text('John Doe',
+                          style: TextStyle(
+                              color: Colors.white,
+                              fontSize: 24,
+                              fontWeight: FontWeight.w800)),
+                      const SizedBox(height: 8),
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          _chip('72 years old'),
+                          const SizedBox(width: 8),
+                          _chip('Dementia'),
+                        ],
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ],
           ),
         ),
-      ),
-      body: Center(
-        child: Column(
-          children: [
-            const SizedBox(height: 20),
 
-            // Profile Circle
-            CircleAvatar(
-              radius: 40,
-              backgroundColor: Colors.grey[400],
-              child: const Icon(
-                Icons.person,
-                size: 40,
+        Padding(
+          padding: const EdgeInsets.fromLTRB(20, 20, 20, 24),
+          child: Column(
+            children: [
+              // Details
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(24),
+                ),
+                child: Column(
+                  children: [
+                    _infoRow(Icons.person_outline, 'Full name', 'John Doe'),
+                    const Divider(height: 1, color: AppColors.softBlue),
+                    _infoRow(Icons.cake_outlined, 'Age', '72 years old'),
+                    const Divider(height: 1, color: AppColors.softBlue),
+                    _infoRow(
+                        Icons.favorite_border_rounded, 'Condition', 'Dementia'),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 14),
+
+              // Main contact
+              Container(
+                padding: const EdgeInsets.all(16),
+                decoration: BoxDecoration(
+                  color: AppColors.lightGreen,
+                  borderRadius: BorderRadius.circular(24),
+                ),
+                child: Row(
+                  children: [
+                    const Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text('Main contact',
+                              style: TextStyle(
+                                  fontSize: 12,
+                                  fontWeight: FontWeight.w600,
+                                  color: AppColors.greenText)),
+                          SizedBox(height: 2),
+                          Text(_mainContact,
+                              style: TextStyle(
+                                  fontSize: 16,
+                                  fontWeight: FontWeight.w700,
+                                  color: AppColors.ink)),
+                        ],
+                      ),
+                    ),
+                    CircleIconButton(
+                      icon: Icons.call_outlined,
+                      tooltip: 'Call main contact',
+                      background: AppColors.green,
+                      color: Colors.white,
+                      onPressed: () => callNumber(context, _mainContact),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 14),
+
+              // Familiar faces
+              Material(
                 color: Colors.white,
+                borderRadius: BorderRadius.circular(24),
+                clipBehavior: Clip.antiAlias,
+                child: InkWell(
+                  onTap: onOpenContacts,
+                  child: Padding(
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+                    child: Row(
+                      children: [
+                        if (contacts.isEmpty)
+                          const IconBadge(
+                            icon: Icons.people_outline,
+                            background: AppColors.lightGreen,
+                            color: AppColors.green,
+                          )
+                        else
+                          SizedBox(
+                            width: 38.0 + 26.0 * (contacts.length.clamp(1, 3) - 1).toDouble(),
+                            height: 38,
+                            child: Stack(
+                              children: [
+                                for (var i = 0; i < contacts.length && i < 3; i++)
+                                  Positioned(
+                                    left: 26.0 * i,
+                                    child: ContactAvatar(
+                                      contact: contacts[i],
+                                      size: 38,
+                                      colorIndex: i,
+                                    ),
+                                  ),
+                              ],
+                            ),
+                          ),
+                        const SizedBox(width: 14),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              const Text('Familiar faces',
+                                  style: TextStyle(
+                                      fontSize: 15,
+                                      fontWeight: FontWeight.w600,
+                                      color: AppColors.ink)),
+                              const SizedBox(height: 2),
+                              Text(
+                                contacts.isEmpty
+                                    ? 'Add people John knows'
+                                    : '${contacts.length} '
+                                        '${contacts.length == 1 ? 'person' : 'people'} John knows',
+                                style: const TextStyle(
+                                    fontSize: 12, color: AppColors.muted),
+                              ),
+                            ],
+                          ),
+                        ),
+                        const Icon(Icons.chevron_right_rounded,
+                            color: AppColors.deepBlue),
+                      ],
+                    ),
+                  ),
+                ),
               ),
-            ),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
 
-            const SizedBox(height: 30),
+  static Widget _circle(double size, Color color) => Container(
+        width: size,
+        height: size,
+        decoration: BoxDecoration(color: color, shape: BoxShape.circle),
+      );
 
-            // Info Card
-            Container(
-              width: 300,
-              height: 350,
-              padding: const EdgeInsets.all(20),
-              decoration: BoxDecoration(
-                color: const Color(0xFF8FA9C4), // blue like your design
-                borderRadius: BorderRadius.circular(20),
-                boxShadow: [
-                  BoxShadow(
-                    color: Colors.black.withOpacity(0.2),
-                    blurRadius: 6,
-                    offset: const Offset(0, 3),
-                  ),
-                ],
-              ),
+  static Widget _chip(String text) => Container(
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+        decoration: BoxDecoration(
+          color: const Color(0x29FFFFFF),
+          borderRadius: BorderRadius.circular(12),
+        ),
+        child: Text(text,
+            style: const TextStyle(
+                color: Colors.white,
+                fontSize: 13,
+                fontWeight: FontWeight.w500)),
+      );
 
-              child: const Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    "Name: John Doe",
-                    style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
-                  ),
-
-                  SizedBox(height: 15),
-
-                  Text(
-                    "Age: 72 years old",
-                    style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
-                  ),
-
-                  SizedBox(height: 15),
-
-                  Text(
-                    "Condition: Dementia",
-                    style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
-                  ),
-
-                  SizedBox(height: 15),
-
-                  Text(
-                    "Emergency Contact:",
-                    style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
-                  ),
-
-                  SizedBox(height: 5),
-
-                  Text(
-                    "+212 6 25 34 52",
-                    style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
-                  ),
-                ],
-              ),
+  static Widget _infoRow(IconData icon, String label, String value) => Padding(
+        padding: const EdgeInsets.symmetric(vertical: 12),
+        child: Row(
+          children: [
+            IconBadge(icon: icon),
+            const SizedBox(width: 14),
+            Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(label,
+                    style:
+                        const TextStyle(fontSize: 12, color: AppColors.muted)),
+                const SizedBox(height: 2),
+                Text(value,
+                    style: const TextStyle(
+                        fontSize: 15,
+                        fontWeight: FontWeight.w600,
+                        color: AppColors.ink)),
+              ],
             ),
           ],
         ),
-      ),
-    );
-  }
+      );
 }
