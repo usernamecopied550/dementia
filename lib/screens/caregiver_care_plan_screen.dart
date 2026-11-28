@@ -1,13 +1,11 @@
 import 'package:flutter/material.dart';
 
 import '../constants/colors.dart';
-import '../data/app_data.dart';
 import '../models/care_item.dart';
-import '../models/medication.dart';
-import '../services/task_service.dart';
+import '../services/caregiver_task_service.dart';
 import '../widgets/caregiver_widgets.dart';
 
-/// Medications + daily tasks in one timeline.
+/// Scheduled tasks in one timeline.
 class CaregiverCarePlanScreen extends StatefulWidget {
   const CaregiverCarePlanScreen({super.key});
 
@@ -17,19 +15,18 @@ class CaregiverCarePlanScreen extends StatefulWidget {
 }
 
 class _CaregiverCarePlanScreenState extends State<CaregiverCarePlanScreen> {
-  String _filter = 'all'; // all | med | task
   late Future<List<Map<String, dynamic>>> _tasksFuture;
 
   @override
   void initState() {
     super.initState();
-    _tasksFuture = TaskService.loadTasksWithCompletion();
+    _tasksFuture = CaregiverTaskService.loadTasksWithCompletion();
   }
 
   // FIXED: block body { } so setState doesn't return a Future
   void _reloadTasks() {
     setState(() {
-      _tasksFuture = TaskService.loadTasksWithCompletion();
+      _tasksFuture = CaregiverTaskService.loadTasksWithCompletion();
     });
   }
 
@@ -47,171 +44,6 @@ class _CaregiverCarePlanScreenState extends State<CaregiverCarePlanScreen> {
   }
 
   // ---------- Add ----------
-
-  void _showAddChoice() {
-    showModalBottomSheet(
-      context: context,
-      backgroundColor: Colors.white,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
-      ),
-      builder: (sheetContext) {
-        return SafeArea(
-          child: Padding(
-            padding: const EdgeInsets.fromLTRB(20, 16, 20, 20),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                const Text('What do you want to add?',
-                    style: TextStyle(
-                        fontSize: 18,
-                        fontWeight: FontWeight.w800,
-                        color: AppColors.ink)),
-                const SizedBox(height: 16),
-                _choiceTile(
-                  icon: Icons.medication_outlined,
-                  title: 'Medication',
-                  color: AppColors.blue,
-                  badge: AppColors.lightBlue,
-                  iconColor: AppColors.deepBlue,
-                  onTap: () {
-                    Navigator.pop(sheetContext);
-                    _showAddMedicationDialog();
-                  },
-                ),
-                const SizedBox(height: 10),
-                _choiceTile(
-                  icon: Icons.checklist_rounded,
-                  title: 'Task',
-                  color: AppColors.lightGreen,
-                  badge: AppColors.midGreen,
-                  iconColor: AppColors.green,
-                  onTap: () {
-                    Navigator.pop(sheetContext);
-                    _showAddTaskDialog();
-                  },
-                ),
-              ],
-            ),
-          ),
-        );
-      },
-    );
-  }
-
-  Widget _choiceTile({
-    required IconData icon,
-    required String title,
-    required Color color,
-    required Color badge,
-    required Color iconColor,
-    required VoidCallback onTap,
-  }) {
-    return Material(
-      color: color,
-      borderRadius: BorderRadius.circular(20),
-      clipBehavior: Clip.antiAlias,
-      child: InkWell(
-        onTap: onTap,
-        child: Padding(
-          padding: const EdgeInsets.all(14),
-          child: Row(
-            children: [
-              IconBadge(icon: icon, background: badge, color: iconColor),
-              const SizedBox(width: 14),
-              Text(title,
-                  style: const TextStyle(
-                      fontSize: 16,
-                      fontWeight: FontWeight.w700,
-                      color: AppColors.ink)),
-              const Spacer(),
-              const Icon(Icons.chevron_right_rounded, color: AppColors.ink),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-
-  Future<void> _showAddMedicationDialog() async {
-    final nameController = TextEditingController();
-    TimeOfDay selectedTime = const TimeOfDay(hour: 9, minute: 0);
-
-    await showDialog(
-      context: context,
-      builder: (dialogContext) {
-        return StatefulBuilder(
-          builder: (context, setDialogState) {
-            return AlertDialog(
-              backgroundColor: Colors.white,
-              shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(24)),
-              title: const Text('Add medication'),
-              content: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  TextField(
-                    controller: nameController,
-                    decoration: const InputDecoration(
-                      labelText: 'Medicine name',
-                      hintText: 'e.g. Paracetamol',
-                    ),
-                  ),
-                  const SizedBox(height: 12),
-                  ListTile(
-                    contentPadding: EdgeInsets.zero,
-                    title: const Text('Time'),
-                    subtitle: Text(selectedTime.format(context)),
-                    trailing: const Icon(Icons.access_time),
-                    onTap: () async {
-                      final time = await showTimePicker(
-                        context: context,
-                        initialTime: selectedTime,
-                      );
-                      if (time != null) {
-                        setDialogState(() {
-                          selectedTime = time;
-                        });
-                      }
-                    },
-                  ),
-                ],
-              ),
-              actions: [
-                TextButton(
-                  onPressed: () => Navigator.pop(dialogContext),
-                  child: const Text('Cancel'),
-                ),
-                FilledButton(
-                  style: FilledButton.styleFrom(
-                      backgroundColor: AppColors.deepBlue),
-                  onPressed: () {
-                    if (nameController.text.trim().isEmpty) return;
-                    final h = selectedTime.hourOfPeriod == 0
-                        ? 12
-                        : selectedTime.hourOfPeriod;
-                    final m = selectedTime.minute.toString().padLeft(2, '0');
-                    final period =
-                    selectedTime.period == DayPeriod.am ? 'AM' : 'PM';
-                    setState(() {
-                      AppData.medications.add(Medication(
-                        name: nameController.text.trim(),
-                        time: '$h:$m $period',
-                      ));
-                    });
-                    Navigator.pop(dialogContext);
-                  },
-                  child: const Text('Add'),
-                ),
-              ],
-            );
-          },
-        );
-      },
-    );
-    nameController.dispose();
-  }
 
   Future<void> _showAddTaskDialog() async {
     final titleController = TextEditingController();
@@ -307,7 +139,7 @@ class _CaregiverCarePlanScreenState extends State<CaregiverCarePlanScreen> {
                       return;
                     }
                     try {
-                      await TaskService.saveTask(
+                      await CaregiverTaskService.saveTask(
                         title: titleController.text,
                         time: selectedTime,
                         isRecurring: isRecurring,
@@ -338,21 +170,7 @@ class _CaregiverCarePlanScreenState extends State<CaregiverCarePlanScreen> {
     titleController.dispose();
   }
 
-  // ---------- Tick / delete tasks (Supabase) ----------
-
-  Future<void> _toggleTask(CareItem item) async {
-    if (item.taskId == null) return;
-    try {
-      await TaskService.toggleTaskCompletion(item.taskId!, item.done);
-    } catch (error) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Could not update task: $error')),
-        );
-      }
-    }
-    if (mounted) _reloadTasks();
-  }
+  // ---------- Delete tasks (Supabase) ----------
 
   Future<void> _deleteTask(CareItem item) async {
     if (item.taskId == null) return;
@@ -374,7 +192,7 @@ class _CaregiverCarePlanScreenState extends State<CaregiverCarePlanScreen> {
     );
     if (ok != true) return;
     try {
-      await TaskService.deleteTask(item.taskId!);
+      await CaregiverTaskService.deleteTask(item.taskId!);
     } catch (error) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -392,13 +210,13 @@ class _CaregiverCarePlanScreenState extends State<CaregiverCarePlanScreen> {
     return Scaffold(
       backgroundColor: Colors.transparent,
       floatingActionButton: FloatingActionButton.extended(
-        onPressed: _showAddChoice,
+        onPressed: _showAddTaskDialog,
         backgroundColor: AppColors.deepBlue,
         foregroundColor: Colors.white,
         shape:
         RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
         icon: const Icon(Icons.add_rounded),
-        label: const Text('Add',
+        label: const Text('Add task',
             style: TextStyle(fontWeight: FontWeight.w700, fontSize: 15)),
       ),
       body: SafeArea(
@@ -407,17 +225,12 @@ class _CaregiverCarePlanScreenState extends State<CaregiverCarePlanScreen> {
           builder: (context, snapshot) {
             final loading = snapshot.connectionState != ConnectionState.done;
             final tasks = snapshot.data ?? [];
-            final all = CareItem.combine(AppData.medications, tasks);
-            final shown = all
-                .where((i) =>
-            _filter == 'all' ||
-                (_filter == 'med' && i.isMed) ||
-                (_filter == 'task' && !i.isMed))
-                .toList();
-
-            final meds = all.where((i) => i.isMed);
-            final tsk = all.where((i) => !i.isMed);
-            final done = all.where((i) => i.done).length;
+            final now = DateTime.now();
+            final today = '${now.year}-${now.month.toString().padLeft(2, '0')}-${now.day.toString().padLeft(2, '0')}';
+            final todayTasks = tasks.where((t) => t['is_recurring'] == true ||
+                t['scheduled_date']?.toString() == today).toList();
+            final all = CareItem.combine([], tasks);
+            final done = todayTasks.where((t) => t['isDone'] == true).length;
 
             return Column(
               children: [
@@ -427,26 +240,15 @@ class _CaregiverCarePlanScreenState extends State<CaregiverCarePlanScreen> {
                     children: [
                       PageHeader(subtitle: _todayLabel, title: 'Care plan'),
                       const SizedBox(height: 16),
-                      _ProgressCard(
-                        done: done,
-                        total: all.length,
-                        medsDone: meds.where((i) => i.done).length,
-                        medsTotal: meds.length,
-                        tasksDone: tsk.where((i) => i.done).length,
-                        tasksTotal: tsk.length,
-                      ),
+                      if (!loading && !snapshot.hasError)
+                        _ProgressCard(done: done, total: todayTasks.length),
                       const SizedBox(height: 16),
-                      _FilterBar(
-                        value: _filter,
-                        onChanged: (v) => setState(() {
-                          _filter = v;
-                        }),
-                      ),
+                      const Text('Scheduled tasks'),
                     ],
                   ),
                 ),
                 Expanded(
-                  child: _buildList(shown, loading, snapshot.hasError),
+                  child: _buildList(all, loading, snapshot.hasError, tasks),
                 ),
               ],
             );
@@ -456,7 +258,7 @@ class _CaregiverCarePlanScreenState extends State<CaregiverCarePlanScreen> {
     );
   }
 
-  Widget _buildList(List<CareItem> shown, bool loading, bool hasError) {
+  Widget _buildList(List<CareItem> shown, bool loading, bool hasError, List<Map<String, dynamic>> tasks) {
     if (shown.isEmpty) {
       if (loading) {
         return const Center(child: CircularProgressIndicator());
@@ -470,25 +272,24 @@ class _CaregiverCarePlanScreenState extends State<CaregiverCarePlanScreen> {
     }
 
     return RefreshIndicator(
-      onRefresh: () async => _reloadTasks(),
+      onRefresh: () async {
+        _reloadTasks();
+        await _tasksFuture.catchError((_) => <Map<String, dynamic>>[]);
+      },
       child: ListView.separated(
         padding: const EdgeInsets.fromLTRB(20, 14, 20, 96),
         itemCount: shown.length,
         separatorBuilder: (_, __) => const SizedBox(height: 10),
         itemBuilder: (context, index) {
           final item = shown[index];
+          final task = tasks.firstWhere((t) => t['id'] == item.taskId,
+              orElse: () => <String, dynamic>{});
+          final schedule = task['is_recurring'] == true
+              ? 'Daily' : (task['scheduled_date'] ?? '').toString();
           return _CareRow(
             item: item,
-            onToggle: item.isMed
-                ? () => setState(() {
-              item.med!.taken = !item.med!.taken;
-            })
-                : () => _toggleTask(item),
-            onDelete: item.isMed
-                ? () => setState(() {
-              AppData.medications.remove(item.med);
-            })
-                : () => _deleteTask(item),
+            schedule: schedule,
+            onDelete: () => _deleteTask(item),
           );
         },
       ),
@@ -497,15 +298,11 @@ class _CaregiverCarePlanScreenState extends State<CaregiverCarePlanScreen> {
 }
 
 class _ProgressCard extends StatelessWidget {
-  final int done, total, medsDone, medsTotal, tasksDone, tasksTotal;
+  final int done, total;
 
   const _ProgressCard({
     required this.done,
     required this.total,
-    required this.medsDone,
-    required this.medsTotal,
-    required this.tasksDone,
-    required this.tasksTotal,
   });
 
   @override
@@ -564,8 +361,7 @@ class _ProgressCard extends StatelessWidget {
                   spacing: 8,
                   runSpacing: 6,
                   children: [
-                    _pill('Meds $medsDone/$medsTotal'),
-                    _pill('Tasks $tasksDone/$tasksTotal'),
+                    _pill('Tasks $done/$total'),
                   ],
                 ),
               ],
@@ -590,69 +386,17 @@ class _ProgressCard extends StatelessWidget {
   );
 }
 
-class _FilterBar extends StatelessWidget {
-  final String value;
-  final ValueChanged<String> onChanged;
-
-  const _FilterBar({required this.value, required this.onChanged});
-
-  @override
-  Widget build(BuildContext context) {
-    const options = {'all': 'All', 'med': 'Medications', 'task': 'Tasks'};
-    return Container(
-      padding: const EdgeInsets.all(4),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(18),
-      ),
-      child: Row(
-        children: options.entries.map((e) {
-          final selected = e.key == value;
-          return Expanded(
-            child: Material(
-              color: selected ? AppColors.blue : Colors.transparent,
-              borderRadius: BorderRadius.circular(14),
-              clipBehavior: Clip.antiAlias,
-              child: InkWell(
-                onTap: () => onChanged(e.key),
-                child: SizedBox(
-                  height: 44,
-                  child: Center(
-                    child: Text(
-                      e.value,
-                      style: TextStyle(
-                        fontSize: 13,
-                        fontWeight: FontWeight.w600,
-                        color: selected ? AppColors.ink : AppColors.muted,
-                      ),
-                    ),
-                  ),
-                ),
-              ),
-            ),
-          );
-        }).toList(),
-      ),
-    );
-  }
-}
-
 class _CareRow extends StatelessWidget {
   final CareItem item;
-  final VoidCallback? onToggle;
+  final String schedule;
   final VoidCallback? onDelete;
 
-  const _CareRow({required this.item, this.onToggle, this.onDelete});
+  const _CareRow({required this.item, required this.schedule, this.onDelete});
 
   @override
   Widget build(BuildContext context) {
-    final isMed = item.isMed;
-    final status = item.done
-        ? (isMed ? 'Taken' : 'Completed')
-        : (isMed ? 'Not taken' : 'Pending');
-    final statusColor = isMed
-        ? (item.done ? const Color(0xFF14401A) : AppColors.ink)
-        : (item.done ? AppColors.greenText : AppColors.muted);
+    final status = item.done ? 'Completed' : 'Pending';
+    final statusColor = item.done ? AppColors.greenText : AppColors.muted;
 
     return Row(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -676,22 +420,19 @@ class _CareRow extends StatelessWidget {
           child: Opacity(
             opacity: item.done ? 0.75 : 1,
             child: Material(
-              color: isMed ? AppColors.blue : AppColors.lightGreen,
+              color: AppColors.lightGreen,
               borderRadius: BorderRadius.circular(20),
               clipBehavior: Clip.antiAlias,
               child: InkWell(
-                onTap: onToggle,
                 child: Padding(
                   padding: const EdgeInsets.fromLTRB(14, 12, 8, 12),
                   child: Row(
                     children: [
                       IconBadge(
-                        icon: isMed
-                            ? Icons.medication_outlined
-                            : Icons.checklist_rounded,
+                        icon: Icons.checklist_rounded,
                         background:
-                        isMed ? AppColors.lightBlue : AppColors.midGreen,
-                        color: isMed ? AppColors.deepBlue : AppColors.green,
+                        AppColors.midGreen,
+                        color: AppColors.green,
                       ),
                       const SizedBox(width: 12),
                       Expanded(
@@ -713,7 +454,7 @@ class _CareRow extends StatelessWidget {
                             ),
                             const SizedBox(height: 3),
                             Text(
-                              '${isMed ? 'Medication' : 'Task'} · $status',
+                              '$schedule · $status',
                               style: TextStyle(
                                   fontSize: 12,
                                   fontWeight: FontWeight.w600,

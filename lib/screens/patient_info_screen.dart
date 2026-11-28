@@ -1,21 +1,85 @@
 import 'package:flutter/material.dart';
 
 import '../constants/colors.dart';
-import '../data/app_data.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 import '../widgets/caregiver_widgets.dart';
 
 /// Caregiver's view of the patient profile.
-class PatientInfoScreen extends StatelessWidget {
+class PatientInfoScreen extends StatefulWidget {
   final VoidCallback? onOpenContacts;
 
   const PatientInfoScreen({super.key, this.onOpenContacts});
 
-  static const _mainContact = '+212 6 25 34 52';
+  @override
+  State<PatientInfoScreen> createState() => _PatientInfoScreenState();
+}
+
+class _PatientInfoScreenState extends State<PatientInfoScreen> {
+  late Future<Map<String, dynamic>?> _profileFuture;
+
+  @override
+  void initState() {
+    super.initState();
+    _profileFuture = _load();
+  }
+
+  Future<Map<String, dynamic>?> _load() async {
+    final db = Supabase.instance.client;
+    final uid = db.auth.currentUser?.id;
+    if (uid == null) return null;
+    final link = await db.from('caregiver_patients')
+        .select('patient_id').eq('caregiver_id', uid).maybeSingle();
+    if (link == null) return null;
+    final patientId = link['patient_id'];
+    final profile = await db.from('profiles').select('full_name')
+        .eq('id', patientId).single();
+    final contacts = await db.from('contacts')
+        .select('full_name, phone, is_emergency')
+        .eq('patient_id', patientId).order('created_at');
+    return {'name': profile['full_name'], 'contacts': contacts};
+  }
+
+  void _retry() {
+    setState(() => _profileFuture = _load());
+  }
 
   @override
   Widget build(BuildContext context) {
-    final contacts = AppData.contacts;
+    return FutureBuilder<Map<String, dynamic>?>(
+      future: _profileFuture,
+      builder: (context, snapshot) {
+        if (snapshot.connectionState != ConnectionState.done) {
+          return const Center(child: CircularProgressIndicator());
+        }
+        if (snapshot.hasError) {
+          return Center(child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const Text('Could not load patient profile.'),
+              TextButton(onPressed: _retry, child: const Text('Retry')),
+            ],
+          ));
+        }
+        final data = snapshot.data;
+        if (data == null) {
+          return const Center(child: Text('No patient linked.'));
+        }
+        final rawName = (data['name'] ?? '').toString().trim();
+        final name = rawName.isEmpty ? 'Patient' : rawName;
+        final initials = name.split(RegExp(r'\s+')).take(2)
+            .map((part) => part.characters.first.toUpperCase()).join();
+        final contacts = List<Map<String, dynamic>>.from(data['contacts'] as List);
+        final emergency = contacts.where((c) => c['is_emergency'] == true &&
+            (c['phone'] ?? '').toString().trim().isNotEmpty);
+        final mainContact = emergency.isEmpty ? null : emergency.first;
+        final phone = mainContact?['phone']?.toString().trim();
+        return _buildProfile(context, name, initials, contacts, phone);
+      },
+    );
+  }
 
+  Widget _buildProfile(BuildContext context, String name, String initials,
+      List<Map<String, dynamic>> contacts, String? phone) {
     return ListView(
       padding: EdgeInsets.zero,
       children: [
@@ -64,25 +128,27 @@ class PatientInfoScreen extends StatelessWidget {
                           shape: BoxShape.circle,
                           border: Border.all(color: AppColors.blue, width: 4),
                         ),
-                        child: const Text('JD',
-                            style: TextStyle(
+                        child: Text(initials,
+                            style: const TextStyle(
                                 color: AppColors.deepBlue,
                                 fontSize: 34,
                                 fontWeight: FontWeight.w800)),
                       ),
                       const SizedBox(height: 12),
-                      const Text('John Doe',
-                          style: TextStyle(
+                      Text(name,
+                          textAlign: TextAlign.center,
+                          style: const TextStyle(
                               color: Colors.white,
                               fontSize: 24,
                               fontWeight: FontWeight.w800)),
                       const SizedBox(height: 8),
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.center,
+                      Wrap(
+                        alignment: WrapAlignment.center,
+                        spacing: 8,
+                        runSpacing: 8,
                         children: [
-                          _chip('72 years old'),
-                          const SizedBox(width: 8),
-                          _chip('Dementia'),
+                          _chip('Age not provided'),
+                          _chip('Condition not provided'),
                         ],
                       ),
                     ],
@@ -106,12 +172,12 @@ class PatientInfoScreen extends StatelessWidget {
                 ),
                 child: Column(
                   children: [
-                    _infoRow(Icons.person_outline, 'Full name', 'John Doe'),
+                    _infoRow(Icons.person_outline, 'Full name', name),
                     const Divider(height: 1, color: AppColors.softBlue),
-                    _infoRow(Icons.cake_outlined, 'Age', '72 years old'),
+                    _infoRow(Icons.cake_outlined, 'Age', 'Not provided'),
                     const Divider(height: 1, color: AppColors.softBlue),
                     _infoRow(
-                        Icons.favorite_border_rounded, 'Condition', 'Dementia'),
+                        Icons.favorite_border_rounded, 'Condition', 'Not provided'),
                   ],
                 ),
               ),
@@ -126,31 +192,32 @@ class PatientInfoScreen extends StatelessWidget {
                 ),
                 child: Row(
                   children: [
-                    const Expanded(
+                    Expanded(
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          Text('Main contact',
+                          const Text('Main contact',
                               style: TextStyle(
                                   fontSize: 12,
                                   fontWeight: FontWeight.w600,
                                   color: AppColors.greenText)),
-                          SizedBox(height: 2),
-                          Text(_mainContact,
-                              style: TextStyle(
+                          const SizedBox(height: 2),
+                          Text(phone ?? 'No emergency contact with a phone number',
+                              style: const TextStyle(
                                   fontSize: 16,
                                   fontWeight: FontWeight.w700,
                                   color: AppColors.ink)),
                         ],
                       ),
                     ),
-                    CircleIconButton(
-                      icon: Icons.call_outlined,
-                      tooltip: 'Call main contact',
-                      background: AppColors.green,
-                      color: Colors.white,
-                      onPressed: () => callNumber(context, _mainContact),
-                    ),
+                    if (phone != null)
+                      CircleIconButton(
+                        icon: Icons.call_outlined,
+                        tooltip: 'Call main contact',
+                        background: AppColors.green,
+                        color: Colors.white,
+                        onPressed: () => callNumber(context, phone),
+                      ),
                   ],
                 ),
               ),
@@ -162,36 +229,17 @@ class PatientInfoScreen extends StatelessWidget {
                 borderRadius: BorderRadius.circular(24),
                 clipBehavior: Clip.antiAlias,
                 child: InkWell(
-                  onTap: onOpenContacts,
+                  onTap: widget.onOpenContacts,
                   child: Padding(
                     padding:
-                        const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+                    const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
                     child: Row(
                       children: [
-                        if (contacts.isEmpty)
-                          const IconBadge(
-                            icon: Icons.people_outline,
-                            background: AppColors.lightGreen,
-                            color: AppColors.green,
-                          )
-                        else
-                          SizedBox(
-                            width: 38.0 + 26.0 * (contacts.length.clamp(1, 3) - 1).toDouble(),
-                            height: 38,
-                            child: Stack(
-                              children: [
-                                for (var i = 0; i < contacts.length && i < 3; i++)
-                                  Positioned(
-                                    left: 26.0 * i,
-                                    child: ContactAvatar(
-                                      contact: contacts[i],
-                                      size: 38,
-                                      colorIndex: i,
-                                    ),
-                                  ),
-                              ],
-                            ),
-                          ),
+                        const IconBadge(
+                          icon: Icons.people_outline,
+                          background: AppColors.lightGreen,
+                          color: AppColors.green,
+                        ),
                         const SizedBox(width: 14),
                         Expanded(
                           child: Column(
@@ -205,9 +253,9 @@ class PatientInfoScreen extends StatelessWidget {
                               const SizedBox(height: 2),
                               Text(
                                 contacts.isEmpty
-                                    ? 'Add people John knows'
+                                    ? 'Add people $name knows'
                                     : '${contacts.length} '
-                                        '${contacts.length == 1 ? 'person' : 'people'} John knows',
+                                    '${contacts.length == 1 ? 'person' : 'people'} $name knows',
                                 style: const TextStyle(
                                     fontSize: 12, color: AppColors.muted),
                               ),
@@ -229,45 +277,45 @@ class PatientInfoScreen extends StatelessWidget {
   }
 
   static Widget _circle(double size, Color color) => Container(
-        width: size,
-        height: size,
-        decoration: BoxDecoration(color: color, shape: BoxShape.circle),
-      );
+    width: size,
+    height: size,
+    decoration: BoxDecoration(color: color, shape: BoxShape.circle),
+  );
 
   static Widget _chip(String text) => Container(
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-        decoration: BoxDecoration(
-          color: const Color(0x29FFFFFF),
-          borderRadius: BorderRadius.circular(12),
-        ),
-        child: Text(text,
-            style: const TextStyle(
-                color: Colors.white,
-                fontSize: 13,
-                fontWeight: FontWeight.w500)),
-      );
+    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+    decoration: BoxDecoration(
+      color: const Color(0x29FFFFFF),
+      borderRadius: BorderRadius.circular(12),
+    ),
+    child: Text(text,
+        style: const TextStyle(
+            color: Colors.white,
+            fontSize: 13,
+            fontWeight: FontWeight.w500)),
+  );
 
   static Widget _infoRow(IconData icon, String label, String value) => Padding(
-        padding: const EdgeInsets.symmetric(vertical: 12),
-        child: Row(
+    padding: const EdgeInsets.symmetric(vertical: 12),
+    child: Row(
+      children: [
+        IconBadge(icon: icon),
+        const SizedBox(width: 14),
+        Expanded(child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            IconBadge(icon: icon),
-            const SizedBox(width: 14),
-            Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(label,
-                    style:
-                        const TextStyle(fontSize: 12, color: AppColors.muted)),
-                const SizedBox(height: 2),
-                Text(value,
-                    style: const TextStyle(
-                        fontSize: 15,
-                        fontWeight: FontWeight.w600,
-                        color: AppColors.ink)),
-              ],
-            ),
+            Text(label,
+                style:
+                const TextStyle(fontSize: 12, color: AppColors.muted)),
+            const SizedBox(height: 2),
+            Text(value,
+                style: const TextStyle(
+                    fontSize: 15,
+                    fontWeight: FontWeight.w600,
+                    color: AppColors.ink)),
           ],
-        ),
-      );
+        )),
+      ],
+    ),
+  );
 }

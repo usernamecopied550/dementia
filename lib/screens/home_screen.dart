@@ -4,7 +4,10 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import '../constants/colors.dart';
 import '../widgets/caregiver_widgets.dart';
 import 'family_screen.dart';
-import 'login_screen.dart';
+import 'welcome_screen.dart';
+import 'patient_pairing_screen.dart';
+import '../services/pairing_service.dart';
+import 'dart:async';
 import 'tasks_screen.dart';
 
 /// Patient home: greeting, next thing to do, 2 big buttons, help button.
@@ -24,6 +27,15 @@ class _HomeScreenState extends State<HomeScreen> {
   int _total = 0;
   int _done = 0;
   bool _loading = true;
+  bool _taskError = false;
+  bool _refreshing = false;
+  bool _marking = false;
+  List<Map<String, dynamic>> _pending = [];
+  final _pairing = PairingService();
+  late Future<String?> _linkedCaregiver;
+  Timer? _timer;
+  final Set<String> _shownReminders = {};
+  bool _reminderShowing = false;
 
   // Emergency contact (from the contacts table)
   String? _emergencyName;
@@ -41,7 +53,15 @@ class _HomeScreenState extends State<HomeScreen> {
   @override
   void initState() {
     super.initState();
-    _load();
+    _linkedCaregiver = _pairing.getLinkedPersonName('patient');
+    WidgetsBinding.instance.addPostFrameCallback((_) => _load());
+    _timer = Timer.periodic(const Duration(minutes: 1), (_) => _load());
+  }
+
+  @override
+  void dispose() {
+    _timer?.cancel();
+    super.dispose();
   }
 
   String get _today {
@@ -50,12 +70,7 @@ class _HomeScreenState extends State<HomeScreen> {
         '${d.day.toString().padLeft(2, '0')}';
   }
 
-  String get _greeting {
-    final h = DateTime.now().hour;
-    if (h < 12) return 'Good morning';
-    if (h < 18) return 'Good afternoon';
-    return 'Good evening';
-  }
+  String get _greeting => 'Hello!';
 
   String get _dateText {
     final d = DateTime.now();
@@ -68,12 +83,14 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   Future<void> _load() async {
+    if (!mounted || _refreshing) return;
     final uid = _db.auth.currentUser?.id;
     if (uid == null) {
       if (mounted) setState(() => _loading = false);
       return;
     }
 
+    _refreshing = true;
     // Tasks
     try {
       final tasks = List<Map<String, dynamic>>.from(await _db
@@ -98,9 +115,15 @@ class _HomeScreenState extends State<HomeScreen> {
 
       _total = tasks.length;
       _done = tasks.length - pending.length;
+      _pending = pending;
       _next = pending.isEmpty ? null : pending.first;
+      _taskError = false;
     } catch (_) {
       _next = null;
+      _pending = [];
+      _total = 0;
+      _done = 0;
+      _taskError = true;
     }
 
     // Emergency contact (first one with a phone number)
@@ -128,12 +151,139 @@ class _HomeScreenState extends State<HomeScreen> {
       _emergencyPhone = null;
     }
 
-    if (mounted) setState(() => _loading = false);
+    _refreshing = false;
+    if (!mounted) return;
+    setState(() {
+      _loading = false;
+      _linkedCaregiver = _pairing.getLinkedPersonName('patient');
+    });
+    _checkReminders();
+  }
+
+  DateTime? _scheduledTime(Map<String, dynamic> task) {
+    final parts = (task['scheduled_time'] ?? '').toString().split(':');
+    if (parts.length < 2) return null;
+    final hour = int.tryParse(parts[0]);
+    final minute = int.tryParse(parts[1]);
+    if (hour == null || minute == null) return null;
+    final now = DateTime.now();
+    return DateTime(now.year, now.month, now.day, hour, minute);
+  }
+
+  Future<void> _checkReminders() async {
+    if (!mounted || _reminderShowing || _marking ||
+        ModalRoute.of(context)?.isCurrent != true) return;
+    final now = DateTime.now();
+    for (final task in _pending) {
+      final scheduled = _scheduledTime(task);
+      if (scheduled == null) continue;
+      final difference = now.difference(scheduled);
+      final key = "${task['id']}-$_today";
+      if (difference.isNegative || difference.inMinutes >= 5 ||
+          _shownReminders.contains(key)) continue;
+      _shownReminders.add(key);
+      _reminderShowing = true;
+      try {
+        final viewTasks = await showDialog<bool>(
+          context: context,
+          barrierDismissible: false,
+          builder: (dialogContext) => AlertDialog(
+            title: const Text('Activity Reminder'),
+            content: Text("It's time for your activity:\\n\\n${task['title']}",
+                style: const TextStyle(fontSize: 22)),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(dialogContext, false),
+                child: const Text('Dismiss'),
+              ),
+              FilledButton(
+                onPressed: () => Navigator.pop(dialogContext, true),
+                child: const Text("View Today's Tasks"),
+              ),
+            ],
+          ),
+        );
+        if (viewTasks == true && mounted) {
+          await Navigator.push(context,
+              MaterialPageRoute(builder: (_) => const TasksScreen()));
+          await _load();
+        }
+      } finally {
+        _reminderShowing = false;
+      }
+      break;
+    }
+  }
+
+  Widget _connectionBanner() {
+    return FutureBuilder<String?>(
+      future: _linkedCaregiver,
+      builder: (context, snapshot) {
+        if (snapshot.connectionState == ConnectionState.waiting &&
+            !snapshot.hasData) return const LinearProgressIndicator();
+        if (snapshot.hasError) {
+          return TextButton(
+            onPressed: () => setState(() {
+              _linkedCaregiver = _pairing.getLinkedPersonName('patient');
+            }),
+            child: const Text('Could not load caregiver. Retry'),
+          );
+        }
+        final name = snapshot.data;
+        return Container(
+          padding: const EdgeInsets.all(16),
+          decoration: BoxDecoration(
+            color: AppColors.lightBlue,
+            borderRadius: BorderRadius.circular(22),
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Text(name == null ? 'No caregiver linked' : 'Your caregiver: $name',
+                  style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
+              const SizedBox(height: 8),
+              if (name == null)
+                FilledButton(
+                  onPressed: () async {
+                    await Navigator.push(context, MaterialPageRoute(
+                        builder: (_) => const PatientPairingScreen()));
+                    if (!mounted) return;
+                    await _load();
+                  },
+                  child: const Text('Link a Caregiver'),
+                )
+              else
+                const Text('Connected', style: TextStyle(color: Colors.green)),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
+  Widget _overdueBanner() {
+    final now = DateTime.now();
+    final count = _pending.where((task) {
+      final time = _scheduledTime(task);
+      return time != null && time.isBefore(now);
+    }).length;
+    if (count == 0) return const SizedBox.shrink();
+    return Container(
+      margin: const EdgeInsets.only(bottom: 14),
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: const Color(0xFFFFF0D6),
+        borderRadius: BorderRadius.circular(22),
+      ),
+      child: Text(count == 1 ? '1 overdue activity' : '$count overdue activities',
+          style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
+    );
   }
 
   Future<void> _markDone() async {
     final uid = _db.auth.currentUser?.id;
-    if (uid == null || _next == null) return;
+    if (uid == null || _next == null || _marking || _refreshing) return;
+    setState(() => _marking = true);
     try {
       await _db.from('task_completions').insert({
         'task_id': (_next!['id'] as num).toInt(),
@@ -141,13 +291,20 @@ class _HomeScreenState extends State<HomeScreen> {
         'completed_date': _today,
       });
     } catch (_) {
-      // The save often works even if the reply fails, so just reload
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Could not confirm completion. Refresh and try again.')),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _marking = false);
     }
     await _load();
   }
 
   Future<void> _askForHelp() async {
-    if (_emergencyPhone == null) return;
+    final phone = _emergencyPhone;
+    if (phone == null) return;
     final firstName = (_emergencyName ?? '').trim().split(' ').first;
 
     final yes = await showModalBottomSheet<bool>(
@@ -223,7 +380,7 @@ class _HomeScreenState extends State<HomeScreen> {
     );
 
     if (yes == true && mounted) {
-      await callNumber(context, _emergencyPhone!);
+      await callNumber(context, phone);
     }
   }
 
@@ -233,7 +390,7 @@ class _HomeScreenState extends State<HomeScreen> {
       if (!mounted) return;
       Navigator.pushAndRemoveUntil(
         context,
-        MaterialPageRoute(builder: (context) => const LoginScreen()),
+        MaterialPageRoute(builder: (context) => const WelcomeScreen()),
             (route) => false,
       );
     } catch (_) {
@@ -264,7 +421,10 @@ class _HomeScreenState extends State<HomeScreen> {
               ),
               const SizedBox(height: 8),
               _hero(),
+              const SizedBox(height: 14),
+              _connectionBanner(),
               const SizedBox(height: 20),
+              _overdueBanner(),
               _nextCard(),
               const SizedBox(height: 20),
               _BigButton(
@@ -414,6 +574,8 @@ class _HomeScreenState extends State<HomeScreen> {
         padding: EdgeInsets.all(20),
         child: Center(child: CircularProgressIndicator()),
       );
+    } else if (_taskError) {
+      child = const Text("Could not load activities. Pull down to retry.");
     } else if (_next == null) {
       child = Row(
         children: [
@@ -479,7 +641,7 @@ class _HomeScreenState extends State<HomeScreen> {
             width: double.infinity,
             height: 64,
             child: FilledButton.icon(
-              onPressed: _markDone,
+              onPressed: _marking || _refreshing ? null : _markDone,
               style: FilledButton.styleFrom(
                 backgroundColor: AppColors.lightGreen,
                 foregroundColor: AppColors.greenText,

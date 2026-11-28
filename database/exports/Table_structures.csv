@@ -1,0 +1,51 @@
+table_name,column_name,data_type,is_nullable,column_default
+caregiver_patients,id,bigint,NO,null
+caregiver_patients,caregiver_id,uuid,NO,null
+caregiver_patients,patient_id,uuid,NO,null
+caregiver_patients,created_at,timestamp with time zone,NO,now()
+contacts,id,uuid,NO,gen_random_uuid()
+contacts,patient_id,uuid,NO,null
+contacts,created_by,uuid,NO,auth.uid()
+contacts,full_name,text,NO,null
+contacts,phone,text,YES,null
+contacts,relationship,text,NO,'other'::text
+contacts,reminder_note,text,YES,null
+contacts,photo_path,text,YES,null
+contacts,is_emergency,boolean,NO,false
+contacts,created_at,timestamp with time zone,NO,now()
+medication_logs,id,bigint,NO,null
+medication_logs,created_at,timestamp with time zone,NO,now()
+medication_logs,medication_id,bigint,YES,null
+medication_logs,taken_at,timestamp with time zone,YES,now()
+medications,id,bigint,NO,null
+medications,created_at,timestamp with time zone,NO,now()
+medications,name,text,YES,null
+medications,dosage,text,YES,null
+medications,scheduled_time,time without time zone,YES,null
+medications,instructions,text,YES,null
+pairing_attempts,caregiver_id,uuid,NO,null
+pairing_attempts,attempt_count,integer,NO,0
+pairing_attempts,window_started_at,timestamp with time zone,NO,now()
+pairing_codes,id,bigint,NO,null
+pairing_codes,patient_id,uuid,NO,null
+pairing_codes,code,text,NO,null
+pairing_codes,created_at,timestamp with time zone,NO,now()
+pairing_codes,expires_at,timestamp with time zone,NO,null
+pairing_codes,used_at,timestamp with time zone,YES,null
+profiles,id,uuid,NO,null
+profiles,created_at,timestamp with time zone,NO,now()
+profiles,full_name,text,YES,null
+profiles,role,text,NO,null
+task_completions,id,bigint,NO,null
+task_completions,task_id,bigint,NO,null
+task_completions,patient_id,uuid,NO,null
+task_completions,completed_date,date,NO,null
+task_completions,completed_at,timestamp with time zone,NO,now()
+tasks,id,bigint,NO,null
+tasks,caregiver_id,uuid,NO,null
+tasks,patient_id,uuid,NO,null
+tasks,title,text,NO,null
+tasks,scheduled_time,time without time zone,NO,null
+tasks,scheduled_date,date,YES,null
+tasks,is_recurring,boolean,NO,false
+tasks,created_at,timestamp with time zone,NO,now()

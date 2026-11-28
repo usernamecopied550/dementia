@@ -2,13 +2,13 @@ import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../constants/colors.dart';
-import '../data/app_data.dart';
-import '../models/care_item.dart';
-import '../services/task_service.dart';
+import '../services/caregiver_task_service.dart';
+import '../services/pairing_service.dart';
+import '../widgets/caregiver_connection_banner.dart';
 import '../widgets/caregiver_widgets.dart';
 import 'caregiver_care_plan_screen.dart';
 import 'caregiver_contacts_screen.dart';
-import 'login_screen.dart';
+import 'welcome_screen.dart';
 import 'patient_info_screen.dart';
 
 /// Caregiver side: bottom navigation with 4 tabs.
@@ -22,12 +22,46 @@ class CaregiverHomeScreen extends StatefulWidget {
 class _CaregiverHomeScreenState extends State<CaregiverHomeScreen> {
   int _index = 0;
 
-  void _goTo(int index) => setState(() => _index = index);
+  final _pairing = PairingService();
+  String? _patientName;
+  bool _checking = true;
+
+  @override
+  void initState() {
+    super.initState();
+    _checkConnection();
+  }
+
+  Future<void> _checkConnection() async {
+    try {
+      final name = await _pairing.getLinkedPersonName('caregiver');
+      if (!mounted) return;
+      setState(() {
+        _patientName = name;
+        _checking = false;
+        if (name == null) _index = 0;
+      });
+    } catch (_) {
+      if (!mounted) return;
+      setState(() { _patientName = null; _checking = false; _index = 0; });
+    }
+  }
+
+  void _goTo(int index) {
+    if (index != 0 && _patientName == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Link a patient first.')),
+      );
+      return;
+    }
+    setState(() => _index = index);
+  }
 
   @override
   Widget build(BuildContext context) {
     final pages = <Widget>[
-      CaregiverDashboard(onNavigate: _goTo),
+      CaregiverDashboard(onNavigate: _goTo, patientName: _patientName,
+          checking: _checking, onConnectionChanged: _checkConnection),
       const CaregiverCarePlanScreen(),
       const CaregiverContactsScreen(),
       PatientInfoScreen(onOpenContacts: () => _goTo(2)),
@@ -56,7 +90,7 @@ class _CaregiverHomeScreenState extends State<CaregiverHomeScreen> {
               backgroundColor: Colors.white,
               indicatorColor: AppColors.lightBlue,
               elevation: 0,
-              destinations: const [
+              destinations: [
                 NavigationDestination(
                   icon: Icon(Icons.home_outlined, color: AppColors.muted),
                   selectedIcon:
@@ -64,18 +98,18 @@ class _CaregiverHomeScreenState extends State<CaregiverHomeScreen> {
                   label: 'Home',
                 ),
                 NavigationDestination(
-                  icon: Icon(Icons.event_note_outlined, color: AppColors.muted),
+                  icon: Icon(_patientName == null ? Icons.lock_outline : Icons.event_note_outlined, color: AppColors.muted),
                   selectedIcon:
                   Icon(Icons.event_note, color: AppColors.deepBlue),
                   label: 'Care plan',
                 ),
                 NavigationDestination(
-                  icon: Icon(Icons.people_outline, color: AppColors.muted),
+                  icon: Icon(_patientName == null ? Icons.lock_outline : Icons.people_outline, color: AppColors.muted),
                   selectedIcon: Icon(Icons.people, color: AppColors.deepBlue),
                   label: 'Contacts',
                 ),
                 NavigationDestination(
-                  icon: Icon(Icons.person_outline, color: AppColors.muted),
+                  icon: Icon(_patientName == null ? Icons.lock_outline : Icons.person_outline, color: AppColors.muted),
                   selectedIcon: Icon(Icons.person, color: AppColors.deepBlue),
                   label: 'Patient',
                 ),
@@ -91,8 +125,13 @@ class _CaregiverHomeScreenState extends State<CaregiverHomeScreen> {
 /// Home tab.
 class CaregiverDashboard extends StatefulWidget {
   final ValueChanged<int> onNavigate;
+  final String? patientName;
+  final bool checking;
+  final VoidCallback onConnectionChanged;
 
-  const CaregiverDashboard({super.key, required this.onNavigate});
+  const CaregiverDashboard({super.key, required this.onNavigate,
+    required this.patientName, required this.checking,
+    required this.onConnectionChanged});
 
   @override
   State<CaregiverDashboard> createState() => _CaregiverDashboardState();
@@ -104,11 +143,28 @@ class _CaregiverDashboardState extends State<CaregiverDashboard> {
   @override
   void initState() {
     super.initState();
-    _tasksFuture = TaskService.loadTasksWithCompletion();
+    _tasksFuture = _loadToday();
+  }
+
+  Future<List<Map<String, dynamic>>> _loadToday() async {
+    if (widget.patientName == null) return [];
+    final now = DateTime.now();
+    final today = '${now.year}-${now.month.toString().padLeft(2, '0')}-${now.day.toString().padLeft(2, '0')}';
+    final tasks = await CaregiverTaskService.loadTasksWithCompletion();
+    return tasks.where((t) => t['is_recurring'] == true ||
+        t['scheduled_date']?.toString() == today).toList();
+  }
+
+  @override
+  void didUpdateWidget(covariant CaregiverDashboard oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.patientName != widget.patientName) {
+      _tasksFuture = _loadToday();
+    }
   }
 
   Future<void> _refresh() async {
-    setState(() => _tasksFuture = TaskService.loadTasksWithCompletion());
+    setState(() => _tasksFuture = _loadToday());
     await _tasksFuture.catchError((_) => <Map<String, dynamic>>[]);
   }
 
@@ -124,7 +180,7 @@ class _CaregiverDashboardState extends State<CaregiverDashboard> {
     if (!mounted) return;
     Navigator.pushAndRemoveUntil(
       context,
-      MaterialPageRoute(builder: (context) => const LoginScreen()),
+      MaterialPageRoute(builder: (context) => const WelcomeScreen()),
           (route) => false,
     );
   }
@@ -137,13 +193,14 @@ class _CaregiverDashboardState extends State<CaregiverDashboard> {
         builder: (context, snapshot) {
           final loading = snapshot.connectionState != ConnectionState.done;
           final tasks = snapshot.data ?? [];
-          final meds = AppData.medications;
-
-          final medsDone = meds.where((m) => m.taken).length;
-          final tasksDone = tasks.where((t) => t['isDone'] == true).length;
-          final total = meds.length + tasks.length;
-          final done = medsDone + tasksDone;
-          final next = CareItem.nextUp(CareItem.combine(meds, tasks));
+          final done = tasks.where((t) => t['isDone'] == true).length;
+          final total = tasks.length;
+          final now = DateTime.now();
+          final clock = '${now.hour.toString().padLeft(2, '0')}:${now.minute.toString().padLeft(2, '0')}';
+          final pending = tasks.where((t) => t['isDone'] != true).toList();
+          pending.sort((a,b) => a['scheduled_time'].toString().compareTo(b['scheduled_time'].toString()));
+          final upcoming = pending.where((t) => t['scheduled_time'].toString().compareTo(clock) >= 0).toList();
+          final next = upcoming.isEmpty ? null : upcoming.first;
 
           return RefreshIndicator(
             onRefresh: _refresh,
@@ -160,90 +217,103 @@ class _CaregiverDashboardState extends State<CaregiverDashboard> {
                   ),
                 ),
                 const SizedBox(height: 18),
-                _PatientHeroCard(
-                  done: done,
-                  total: total,
-                  loading: loading,
-                  onTap: () => widget.onNavigate(3),
-                ),
-                const SizedBox(height: 20),
-                Row(
-                  children: [
-                    const Expanded(
-                      child: Text(
-                        'Today at a glance',
-                        style: TextStyle(
-                          fontSize: 17,
-                          fontWeight: FontWeight.w700,
-                          color: AppColors.ink,
+                CaregiverConnectionBanner(onConnectionChanged: widget.onConnectionChanged),
+                if (widget.patientName == null) ...[
+                  const SizedBox(height: 16),
+                  if (!widget.checking) TextButton(onPressed: widget.onConnectionChanged,
+                      child: const Text('Refresh connection')),
+                  const Text('Link a patient to access the care plan, contacts and patient information.'),
+                ] else if (snapshot.hasError) ...[
+                  const SizedBox(height: 16),
+                  TextButton(onPressed: _refresh, child: const Text('Could not load tasks. Retry')),
+                ] else ...[
+                  const SizedBox(height: 18),
+                  _PatientHeroCard(
+                    patientName: widget.patientName!,
+                    done: done,
+                    total: total,
+                    loading: loading,
+                    onTap: () => widget.onNavigate(3),
+                  ),
+                  const SizedBox(height: 20),
+                  Row(
+                    children: [
+                      const Expanded(
+                        child: Text(
+                          'Today at a glance',
+                          style: TextStyle(
+                            fontSize: 17,
+                            fontWeight: FontWeight.w700,
+                            color: AppColors.ink,
+                          ),
                         ),
                       ),
-                    ),
-                    TextButton(
-                      onPressed: () => widget.onNavigate(1),
-                      child: const Text('See plan',
-                          style: TextStyle(
-                              color: AppColors.deepBlue,
-                              fontWeight: FontWeight.w600)),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 4),
-                Row(
-                  children: [
-                    Expanded(
-                      child: _StatCard(
-                        value: '$medsDone/${meds.length}',
-                        label: 'Medications taken',
-                        icon: Icons.medication_outlined,
-                        color: AppColors.blue,
-                        badgeColor: AppColors.lightBlue,
-                        iconColor: AppColors.deepBlue,
-                        onTap: () => widget.onNavigate(1),
+                      TextButton(
+                        onPressed: () => widget.onNavigate(1),
+                        child: const Text('See plan',
+                            style: TextStyle(
+                                color: AppColors.deepBlue,
+                                fontWeight: FontWeight.w600)),
                       ),
-                    ),
-                    const SizedBox(width: 12),
-                    Expanded(
-                      child: _StatCard(
-                        value: loading ? '–' : '$tasksDone/${tasks.length}',
-                        label: 'Tasks completed',
-                        icon: Icons.checklist_rounded,
-                        color: AppColors.lightGreen,
-                        badgeColor: AppColors.midGreen,
-                        iconColor: AppColors.green,
-                        onTap: () => widget.onNavigate(1),
+                    ],
+                  ),
+                  const SizedBox(height: 4),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: _StatCard(
+                          value: loading ? '–' : '${total - done}',
+                          label: 'Tasks remaining',
+                          icon: Icons.pending_actions,
+                          color: AppColors.blue,
+                          badgeColor: AppColors.lightBlue,
+                          iconColor: AppColors.deepBlue,
+                          onTap: () => widget.onNavigate(1),
+                        ),
                       ),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 14),
-                if (next != null) ...[
-                  _NextUpCard(item: next),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: _StatCard(
+                          value: loading ? '–' : '$done/${tasks.length}',
+                          label: 'Tasks completed',
+                          icon: Icons.checklist_rounded,
+                          color: AppColors.lightGreen,
+                          badgeColor: AppColors.midGreen,
+                          iconColor: AppColors.green,
+                          onTap: () => widget.onNavigate(1),
+                        ),
+                      ),
+                    ],
+                  ),
                   const SizedBox(height: 14),
-                ],
-                Row(
-                  children: [
-                    Expanded(
-                      child: _QuickTile(
-                        label: 'Contacts',
-                        icon: Icons.people_outline,
-                        badgeColor: AppColors.lightGreen,
-                        iconColor: AppColors.green,
-                        onTap: () => widget.onNavigate(2),
-                      ),
-                    ),
-                    const SizedBox(width: 12),
-                    Expanded(
-                      child: _QuickTile(
-                        label: 'Patient info',
-                        icon: Icons.person_outline,
-                        badgeColor: AppColors.lightBlue,
-                        iconColor: AppColors.deepBlue,
-                        onTap: () => widget.onNavigate(3),
-                      ),
-                    ),
+                  if (next != null) ...[
+                    _NextUpCard(item: next),
+                    const SizedBox(height: 14),
                   ],
-                ),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: _QuickTile(
+                          label: 'Contacts',
+                          icon: Icons.people_outline,
+                          badgeColor: AppColors.lightGreen,
+                          iconColor: AppColors.green,
+                          onTap: () => widget.onNavigate(2),
+                        ),
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: _QuickTile(
+                          label: 'Patient info',
+                          icon: Icons.person_outline,
+                          badgeColor: AppColors.lightBlue,
+                          iconColor: AppColors.deepBlue,
+                          onTap: () => widget.onNavigate(3),
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
               ],
             ),
           );
@@ -254,12 +324,14 @@ class _CaregiverDashboardState extends State<CaregiverDashboard> {
 }
 
 class _PatientHeroCard extends StatelessWidget {
+  final String patientName;
   final int done;
   final int total;
   final bool loading;
   final VoidCallback onTap;
 
   const _PatientHeroCard({
+    required this.patientName,
     required this.done,
     required this.total,
     required this.loading,
@@ -304,31 +376,27 @@ class _PatientHeroCard extends StatelessWidget {
                           shape: BoxShape.circle,
                           border: Border.all(color: AppColors.blue, width: 3),
                         ),
-                        child: const Text('JD',
+                        child: Text(patientName.trim().isEmpty ? '?' : patientName.trim()[0].toUpperCase(),
                             style: TextStyle(
                                 color: AppColors.deepBlue,
                                 fontSize: 20,
                                 fontWeight: FontWeight.w800)),
                       ),
                       const SizedBox(width: 14),
-                      const Column(
+                      Expanded(child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           Text('Caring for',
                               style: TextStyle(
                                   color: AppColors.lightBlue, fontSize: 13)),
                           SizedBox(height: 2),
-                          Text('John Doe',
+                          Text(patientName,
                               style: TextStyle(
                                   color: Colors.white,
                                   fontSize: 20,
                                   fontWeight: FontWeight.w700)),
-                          SizedBox(height: 2),
-                          Text('72 years · Dementia',
-                              style: TextStyle(
-                                  color: AppColors.lightBlue, fontSize: 13)),
                         ],
-                      ),
+                      )),
                     ],
                   ),
                   const SizedBox(height: 18),
@@ -428,7 +496,7 @@ class _StatCard extends StatelessWidget {
 }
 
 class _NextUpCard extends StatelessWidget {
-  final CareItem item;
+  final Map<String, dynamic> item;
 
   const _NextUpCard({required this.item});
 
@@ -445,8 +513,8 @@ class _NextUpCard extends StatelessWidget {
           IconBadge(
             icon: Icons.schedule_rounded,
             size: 44,
-            background: item.isMed ? AppColors.lightBlue : AppColors.lightGreen,
-            color: item.isMed ? AppColors.deepBlue : AppColors.green,
+            background: AppColors.lightGreen,
+            color: AppColors.green,
           ),
           const SizedBox(width: 14),
           Expanded(
@@ -454,7 +522,7 @@ class _NextUpCard extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  'NEXT UP · ${item.timeLabel}',
+                  'NEXT UP · ${item['scheduled_time'].toString().split(':').take(2).join(':')}',
                   style: const TextStyle(
                       fontSize: 12,
                       fontWeight: FontWeight.w600,
@@ -463,7 +531,7 @@ class _NextUpCard extends StatelessWidget {
                 ),
                 const SizedBox(height: 2),
                 Text(
-                  item.title,
+                  item['title'].toString(),
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                   style: const TextStyle(
@@ -477,15 +545,15 @@ class _NextUpCard extends StatelessWidget {
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
             decoration: BoxDecoration(
-              color: item.isMed ? AppColors.lightBlue : AppColors.lightGreen,
+              color: AppColors.lightGreen,
               borderRadius: BorderRadius.circular(12),
             ),
             child: Text(
-              item.isMed ? 'Medication' : 'Task',
+              'Task',
               style: TextStyle(
                 fontSize: 12,
                 fontWeight: FontWeight.w600,
-                color: item.isMed ? AppColors.deepBlue : AppColors.greenText,
+                color: AppColors.greenText,
               ),
             ),
           ),

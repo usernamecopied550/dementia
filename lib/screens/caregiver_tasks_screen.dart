@@ -63,6 +63,70 @@ class _CaregiverTasksScreenState
     });
   }
 
+  Future<void> deleteTask(int taskId) async {
+    final supabase = Supabase.instance.client;
+    final caregiverId = supabase.auth.currentUser?.id;
+
+    if (caregiverId == null) {
+      throw Exception('Not logged in.');
+    }
+
+    await supabase
+        .from('tasks')
+        .delete()
+        .eq('id', taskId)
+        .eq('caregiver_id', caregiverId);
+  }
+
+  Future<void> confirmDeleteTask(int taskId) async {
+    final shouldDelete = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: const Text('Delete Task?'),
+        content: const Text(
+          'Are you sure you want to delete this task? '
+              'It will also disappear from the patient’s tasks.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext, false),
+            child: const Text('Cancel'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext, true),
+            child: const Text(
+              'Delete',
+              style: TextStyle(color: Colors.red),
+            ),
+          ),
+        ],
+      ),
+    );
+
+    if (shouldDelete != true || !mounted) return;
+
+    try {
+      await deleteTask(taskId);
+
+      if (!mounted) return;
+
+      setState(() {});
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Task deleted successfully!'),
+        ),
+      );
+    } catch (error) {
+      if (!mounted) return;
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Could not delete task: $error'),
+        ),
+      );
+    }
+  }
 
   Future<void> showAddTaskDialog() async {
     final titleController = TextEditingController();
@@ -250,9 +314,6 @@ class _CaregiverTasksScreenState
     return tasks;
   }
 
-
-
-
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -328,16 +389,34 @@ class _CaregiverTasksScreenState
                               subtitle: Text(
                                 'Time: ${task['scheduled_time'].toString().substring(0, 5)}',
                               ),
-                              trailing: Text(
-                                task['isDone'] == true ? 'Completed' : 'Pending',
-                                style: TextStyle(
-                                  color: task['isDone'] == true
-                                      ? Colors.green.shade900
-                                      : Colors.black87,
-                                  fontWeight: FontWeight.bold,
-                                  fontSize: 12,
-                                ),
+
+                              trailing: Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  Text(
+                                    task['isDone'] == true ? 'Completed' : 'Pending',
+                                    style: TextStyle(
+                                      color: task['isDone'] == true
+                                          ? Colors.green.shade900
+                                          : Colors.black87,
+                                      fontWeight: FontWeight.bold,
+                                      fontSize: 12,
+                                    ),
+                                  ),
+                                  const SizedBox(width: 8),
+                                  IconButton(
+                                    icon: const Icon(
+                                      Icons.delete_outline,
+                                      color: Colors.red,
+                                    ),
+                                    tooltip: 'Delete task',
+                                    onPressed: () {
+                                      confirmDeleteTask((task['id'] as num).toInt());
+                                    },
+                                  ),
+                                ],
                               ),
+
                             ),
                           );
 
