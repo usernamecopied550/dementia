@@ -1,0 +1,201 @@
+CREATE OR REPLACE FUNCTION public.generate_pairing_code()
+ RETURNS text
+ LANGUAGE plpgsql
+ SECURITY DEFINER
+ SET search_path TO ''
+AS $function$
+DECLARE
+    current_patient uuid := auth.uid();
+    new_code text;
+    random_bytes bytea;
+    random_number integer;
+BEGIN
+    -- Verify patient identity and role
+    IF current_patient IS NULL OR NOT EXISTS (
+        SELECT 1
+        FROM public.profiles
+        WHERE id = current_patient
+        AND role = 'patient'
+    ) THEN
+        RAISE EXCEPTION 'Only patients can generate pairing codes';
+    END IF;
+
+    -- Prevent simultaneous requests
+    PERFORM 1
+    FROM public.profiles
+    WHERE id = current_patient
+    FOR UPDATE;
+
+    -- NEW: Check whether patient already has a caregiver
+    IF EXISTS (
+        SELECT 1
+        FROM public.caregiver_patients
+        WHERE patient_id = current_patient
+    ) THEN
+        RAISE EXCEPTION 'You already have a linked caregiver';
+    END IF;
+
+    -- Invalidate previous unused codes
+    UPDATE public.pairing_codes
+    SET used_at = now()
+    WHERE patient_id = current_patient
+    AND used_at IS NULL;
+
+    -- Generate a secure six-digit code
+    LOOP
+        random_bytes := extensions.gen_random_bytes(3);
+
+        random_number :=
+            get_byte(random_bytes, 0) * 65536 +
+            get_byte(random_bytes, 1) * 256 +
+            get_byte(random_bytes, 2);
+
+        new_code := lpad(
+            (random_number % 1000000)::text, 6, '0'
+        );
+
+        INSERT INTO public.pairing_codes (
+            patient_id,
+            code,
+            expires_at
+        )
+        VALUES (
+            current_patient,
+            new_code,
+            now() + interval '15 minutes'
+        )
+        ON CONFLICT (code) DO NOTHING;
+
+        IF FOUND THEN
+            RETURN new_code;
+        END IF;
+    END LOOP;
+END;
+$function$;
+
+CREATE OR REPLACE FUNCTION public.redeem_pairing_code(entered_code text)
+ RETURNS text
+ LANGUAGE plpgsql
+ SECURITY DEFINER
+ SET search_path TO ''
+AS $function$
+DECLARE
+    current_caregiver uuid := auth.uid();
+    pairing_record public.pairing_codes%ROWTYPE;
+    attempts integer;
+BEGIN
+    -- Verify caregiver identity and role
+    IF current_caregiver IS NULL OR NOT EXISTS (
+        SELECT 1
+        FROM public.profiles
+        WHERE id = current_caregiver
+        AND role = 'caregiver'
+    ) THEN
+        RETURN 'unauthorized';
+    END IF;
+
+    -- Prevent simultaneous requests
+    PERFORM 1
+    FROM public.profiles
+    WHERE id = current_caregiver
+    FOR UPDATE;
+
+    -- Check whether caregiver already has a patient
+    IF EXISTS (
+        SELECT 1
+        FROM public.caregiver_patients
+        WHERE caregiver_id = current_caregiver
+    ) THEN
+        RETURN 'already_linked';
+    END IF;
+
+    -- Create attempt record if necessary
+    INSERT INTO public.pairing_attempts (caregiver_id)
+    VALUES (current_caregiver)
+    ON CONFLICT (caregiver_id) DO NOTHING;
+
+    -- Reset attempt counter after 15 minutes
+    UPDATE public.pairing_attempts
+    SET attempt_count = 0,
+        window_started_at = now()
+    WHERE caregiver_id = current_caregiver
+    AND window_started_at <= now() - interval '15 minutes';
+
+    SELECT attempt_count INTO attempts
+    FROM public.pairing_attempts
+    WHERE caregiver_id = current_caregiver;
+
+    IF attempts >= 5 THEN
+        RETURN 'too_many_attempts';
+    END IF;
+
+    -- Record the attempt
+    UPDATE public.pairing_attempts
+    SET attempt_count = attempt_count + 1
+    WHERE caregiver_id = current_caregiver;
+
+    -- Find and lock the pairing code
+    SELECT * INTO pairing_record
+    FROM public.pairing_codes
+    WHERE code = entered_code
+    AND used_at IS NULL
+    AND expires_at > now()
+    FOR UPDATE;
+
+    IF NOT FOUND THEN
+        RETURN 'invalid_code';
+    END IF;
+
+    -- Verify patient role
+    IF NOT EXISTS (
+        SELECT 1
+        FROM public.profiles
+        WHERE id = pairing_record.patient_id
+        AND role = 'patient'
+    ) THEN
+        RETURN 'invalid_code';
+    END IF;
+
+    -- NEW: Check whether patient already has a caregiver
+    IF EXISTS (
+        SELECT 1
+        FROM public.caregiver_patients
+        WHERE patient_id = pairing_record.patient_id
+    ) THEN
+        RETURN 'patient_already_linked';
+    END IF;
+
+    -- Create the relationship safely
+    INSERT INTO public.caregiver_patients (
+        caregiver_id,
+        patient_id
+    )
+    VALUES (
+        current_caregiver,
+        pairing_record.patient_id
+    )
+    ON CONFLICT DO NOTHING;
+
+    -- NEW: Handle simultaneous pairing attempts
+    IF NOT FOUND THEN
+        RETURN 'patient_already_linked';
+    END IF;
+
+    -- Mark the code as used
+    UPDATE public.pairing_codes
+    SET used_at = now()
+    WHERE id = pairing_record.id;
+
+    -- Remove attempt counter after successful pairing
+    DELETE FROM public.pairing_attempts
+    WHERE caregiver_id = current_caregiver;
+
+    RETURN 'success';
+END;
+$function$;
+
+-- Execution restrictions from implementation conversation.
+REVOKE ALL ON FUNCTION public.generate_pairing_code() FROM PUBLIC, anon, authenticated;
+GRANT EXECUTE ON FUNCTION public.generate_pairing_code() TO authenticated;
+REVOKE ALL ON FUNCTION public.redeem_pairing_code(text) FROM PUBLIC, anon, authenticated;
+GRANT EXECUTE ON FUNCTION public.redeem_pairing_code(text) TO authenticated;

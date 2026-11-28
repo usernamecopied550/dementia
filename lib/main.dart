@@ -4,7 +4,9 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 
 import 'screens/home_screen.dart';
 import 'screens/caregiver_homescreen.dart';
-import 'screens/login_screen.dart';
+import 'screens/welcome_screen.dart';
+import 'dart:async';
+import 'screens/reset_password_screen.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -37,12 +39,33 @@ class AuthCheckScreen extends StatefulWidget {
 }
 
 class _AuthCheckScreenState extends State<AuthCheckScreen> {
-  late final Future<String?> roleFuture;
+  late Future<String?> roleFuture;
+  late StreamSubscription<AuthState> authSubscription;
+  bool isPasswordRecovery = false;
 
   @override
   void initState() {
     super.initState();
+
+    authSubscription = Supabase.instance.client.auth
+        .onAuthStateChange.listen((data) {
+      if (!mounted) return;
+
+      if (data.event == AuthChangeEvent.passwordRecovery) {
+        setState(() {
+          isPasswordRecovery = true;
+        });
+      }
+    }, onError: (Object error) {
+      debugPrint('Authentication event failed.');
+    });
+
     roleFuture = checkUserRole();
+  }
+  @override
+  void dispose() {
+    authSubscription.cancel();
+    super.dispose();
   }
 
   Future<String?> checkUserRole() async {
@@ -64,6 +87,10 @@ class _AuthCheckScreenState extends State<AuthCheckScreen> {
 
   @override
   Widget build(BuildContext context) {
+    if (isPasswordRecovery) {
+      return const ResetPasswordScreen();
+    }
+
     return FutureBuilder<String?>(
       future: roleFuture,
       builder: (context, snapshot) {
@@ -122,7 +149,7 @@ class _AuthCheckScreenState extends State<AuthCheckScreen> {
                       Navigator.pushReplacement(
                         context,
                         MaterialPageRoute(
-                          builder: (context) => const LoginScreen(),
+                          builder: (context) => const WelcomeScreen(),
                         ),
                       );
                     },
@@ -134,7 +161,7 @@ class _AuthCheckScreenState extends State<AuthCheckScreen> {
           );
         }
 
-        return const LoginScreen();
+        return const WelcomeScreen();
       },
     );
   }

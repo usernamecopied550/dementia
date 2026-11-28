@@ -1,0 +1,2 @@
+schema_name,table_name,trigger_name,trigger_definition
+auth,users,on_auth_user_created,CREATE TRIGGER on_auth_user_created AFTER INSERT ON auth.users FOR EACH ROW EXECUTE FUNCTION handle_new_user()
